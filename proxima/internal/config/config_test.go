@@ -154,3 +154,107 @@ func TestApplyDefaultsPreservesSetValues(t *testing.T) {
 		t.Fatal("InsecureTLS = false, want true")
 	}
 }
+
+func validPasswordConfig() config.Config {
+	return config.Config{
+		ProxmoxHost:  "192.168.1.10",
+		Node:         "pve",
+		Auth:         config.Auth{User: "root@pam", Password: "secret"},
+		VMID:         200,
+		VMName:       "alpine-docker",
+		MemoryMiB:    2048,
+		Cores:        2,
+		DiskSize:     "8G",
+		RootPassword: "change-me",
+	}
+}
+
+func TestValidatePasswordAuth(t *testing.T) {
+	cfg := validPasswordConfig()
+	if err := config.Validate(cfg); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+
+	missingUser := cfg
+	missingUser.Auth.User = ""
+	if err := config.Validate(missingUser); err == nil || err.Error() != "user is required for password authentication" {
+		t.Fatalf("missing user: %v", err)
+	}
+
+	missingPassword := cfg
+	missingPassword.Auth.Password = ""
+	if err := config.Validate(missingPassword); err == nil || err.Error() != "password is required for password authentication" {
+		t.Fatalf("missing password: %v", err)
+	}
+}
+
+func TestValidateTokenAuth(t *testing.T) {
+	cfg := validPasswordConfig()
+	cfg.Auth = config.Auth{TokenID: "root@pam!proxima", TokenSecret: "uuid-secret"}
+	if err := config.Validate(cfg); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+
+	missingID := cfg
+	missingID.Auth.TokenID = ""
+	if err := config.Validate(missingID); err == nil || err.Error() != "token_id is required for token authentication" {
+		t.Fatalf("missing token_id: %v", err)
+	}
+
+	missingSecret := cfg
+	missingSecret.Auth.TokenSecret = ""
+	if err := config.Validate(missingSecret); err == nil || err.Error() != "token_secret is required for token authentication" {
+		t.Fatalf("missing token_secret: %v", err)
+	}
+}
+
+func TestValidateAuthConflict(t *testing.T) {
+	cfg := validPasswordConfig()
+	cfg.Auth.TokenID = "root@pam!proxima"
+	cfg.Auth.TokenSecret = "uuid-secret"
+	if err := config.Validate(cfg); err == nil || err.Error() != "authentication conflict: provide either password auth or token auth, not both" {
+		t.Fatalf("conflict: %v", err)
+	}
+
+	neither := validPasswordConfig()
+	neither.Auth = config.Auth{}
+	if err := config.Validate(neither); err == nil || err.Error() != "authentication is required: provide user/password or token_id/token_secret" {
+		t.Fatalf("neither: %v", err)
+	}
+}
+
+func TestValidateDiskSize(t *testing.T) {
+	cfg := validPasswordConfig()
+	cfg.DiskSize = ""
+	if err := config.Validate(cfg); err == nil || err.Error() != "disk_size is required" {
+		t.Fatalf("empty: %v", err)
+	}
+
+	cfg.DiskSize = "8GB"
+	if err := config.Validate(cfg); err == nil || err.Error() != `disk_size must match ^[1-9][0-9]*[KMGTP]$` {
+		t.Fatalf("invalid: %v", err)
+	}
+
+	cfg.DiskSize = "10G"
+	if err := config.Validate(cfg); err != nil {
+		t.Fatalf("valid: %v", err)
+	}
+}
+
+func TestValidateVMIDRange(t *testing.T) {
+	cfg := validPasswordConfig()
+	cfg.VMID = 99
+	if err := config.Validate(cfg); err == nil || err.Error() != "vmid must be between 100 and 999999999" {
+		t.Fatalf("low: %v", err)
+	}
+
+	cfg.VMID = 1000000000
+	if err := config.Validate(cfg); err == nil || err.Error() != "vmid must be between 100 and 999999999" {
+		t.Fatalf("high: %v", err)
+	}
+
+	cfg.VMID = 100
+	if err := config.Validate(cfg); err != nil {
+		t.Fatalf("min valid: %v", err)
+	}
+}
