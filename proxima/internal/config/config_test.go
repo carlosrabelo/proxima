@@ -1,10 +1,97 @@
 package config_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"proxima/proxima/internal/config"
 )
+
+func TestLoadYAML(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "proxima.yaml")
+	content := `
+proxmox_host: "192.168.1.10"
+node: "pve"
+user: "root@pam"
+password: "secret"
+vmid: 200
+name: "alpine-docker"
+memory: 2048
+cores: 2
+disk_size: "8G"
+root_password: "change-me"
+unknown_key: "ignored"
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := config.Load(path, config.Override{})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.ProxmoxHost != "192.168.1.10" {
+		t.Fatalf("ProxmoxHost = %q", cfg.ProxmoxHost)
+	}
+	if cfg.Node != "pve" {
+		t.Fatalf("Node = %q", cfg.Node)
+	}
+	if cfg.Auth.User != "root@pam" || cfg.Auth.Password != "secret" {
+		t.Fatalf("Auth = %+v", cfg.Auth)
+	}
+	if cfg.VMID != 200 || cfg.VMName != "alpine-docker" {
+		t.Fatalf("VMID=%d VMName=%q", cfg.VMID, cfg.VMName)
+	}
+	if cfg.MemoryMiB != 2048 || cfg.Cores != 2 || cfg.DiskSize != "8G" {
+		t.Fatalf("Memory=%d Cores=%d DiskSize=%q", cfg.MemoryMiB, cfg.Cores, cfg.DiskSize)
+	}
+	if cfg.RootPassword != "change-me" {
+		t.Fatalf("RootPassword = %q", cfg.RootPassword)
+	}
+	if cfg.ProxmoxPort != 8006 || cfg.Storage != "local-lvm" || cfg.Bridge != "vmbr0" {
+		t.Fatalf("defaults not applied: port=%d storage=%q bridge=%q", cfg.ProxmoxPort, cfg.Storage, cfg.Bridge)
+	}
+}
+
+func TestLoadJSON(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "proxima.json")
+	content := `{
+  "proxmox_host": "10.0.0.5",
+  "node": "node1",
+  "token_id": "root@pam!proxima",
+  "token_secret": "uuid-secret",
+  "vmid": 300,
+  "name": "json-vm",
+  "memory": 1024,
+  "cores": 1,
+  "disk_size": "4G",
+  "root_password": "root-secret",
+  "extra": true
+}`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := config.Load(path, config.Override{})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.ProxmoxHost != "10.0.0.5" || cfg.Node != "node1" {
+		t.Fatalf("host=%q node=%q", cfg.ProxmoxHost, cfg.Node)
+	}
+	if cfg.Auth.TokenID != "root@pam!proxima" || cfg.Auth.TokenSecret != "uuid-secret" {
+		t.Fatalf("Auth = %+v", cfg.Auth)
+	}
+	if cfg.VMID != 300 || cfg.VMName != "json-vm" {
+		t.Fatalf("VMID=%d VMName=%q", cfg.VMID, cfg.VMName)
+	}
+	if cfg.OutputQcow2 != "alpine-ready.qcow2" || cfg.WorkDir != ".proxima-work" {
+		t.Fatalf("defaults: output=%q work_dir=%q", cfg.OutputQcow2, cfg.WorkDir)
+	}
+}
 
 func TestApplyDefaults(t *testing.T) {
 	c := config.Config{}
