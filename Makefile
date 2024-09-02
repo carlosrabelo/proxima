@@ -12,11 +12,10 @@ help: ## Show available targets
 		| awk 'BEGIN {FS = ":.*## "} {printf "  %-15s %s\n", $$1, $$2}'
 
 build: ## Build bin/proxima
-	@mkdir -p bin
-	@go build -o bin/proxima ./proxima/cmd/proxima/
+	@./.make/build.sh
 
 test: ## Run unit tests
-	@go test ./...
+	@./.make/test.sh
 
 vet: ## Run go vet
 	@go vet ./...
@@ -29,10 +28,7 @@ fmt-check: ## Fail if gofmt reports unformatted files
 	fi
 
 quality: ## Run fmt-check, vet, test, and build
-	@$(MAKE) fmt-check
-	@$(MAKE) vet
-	@$(MAKE) test
-	@$(MAKE) build
+	@./.make/quality.sh
 
 clean: ## Remove bin/proxima; keep bin/.gitkeep
-	@rm -f bin/proxima
+	@./.make/clean.sh
