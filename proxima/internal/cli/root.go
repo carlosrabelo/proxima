@@ -34,6 +34,7 @@ func NewRootCommand() *cobra.Command {
 			return err
 		},
 	})
+	root.AddCommand(newConfigCommand())
 
 	return root
 }
@@ -51,7 +52,7 @@ func ExecuteWithArgs(args []string, stdout, stderr io.Writer) int {
 	root.SetErr(stderr)
 
 	if err := root.Execute(); err != nil {
-		fmt.Fprintln(stderr, err)
+		fmt.Fprintf(stderr, "Error: %s\n", err)
 		return 1
 	}
 	return 0
