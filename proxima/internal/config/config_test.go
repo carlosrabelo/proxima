@@ -258,3 +258,73 @@ func TestValidateVMIDRange(t *testing.T) {
 		t.Fatalf("min valid: %v", err)
 	}
 }
+
+func TestPrecedenceFlagOverFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "proxima.yaml")
+	content := `
+proxmox_host: "192.168.1.10"
+node: "pve"
+user: "root@pam"
+password: "file-password"
+vmid: 200
+name: "from-file"
+memory: 2048
+cores: 2
+disk_size: "8G"
+root_password: "file-root"
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	name := "from-flag"
+	vmid := 999
+	password := "flag-password"
+	cfg, err := config.Load(path, config.Override{
+		VMName:   &name,
+		VMID:     &vmid,
+		Password: &password,
+	})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.VMName != "from-flag" {
+		t.Fatalf("VMName = %q, want from-flag", cfg.VMName)
+	}
+	if cfg.VMID != 999 {
+		t.Fatalf("VMID = %d, want 999", cfg.VMID)
+	}
+	if cfg.Auth.Password != "flag-password" {
+		t.Fatalf("Password = %q, want flag-password", cfg.Auth.Password)
+	}
+	if cfg.ProxmoxHost != "192.168.1.10" {
+		t.Fatalf("ProxmoxHost = %q, want file value", cfg.ProxmoxHost)
+	}
+}
+
+func TestRedactSecrets(t *testing.T) {
+	cfg := validPasswordConfig()
+	cfg.Auth.TokenSecret = "token-secret"
+	redacted := config.Redact(cfg)
+	if redacted.Auth.Password != "***" {
+		t.Fatalf("Password = %q, want ***", redacted.Auth.Password)
+	}
+	if redacted.Auth.TokenSecret != "***" {
+		t.Fatalf("TokenSecret = %q, want ***", redacted.Auth.TokenSecret)
+	}
+	if redacted.RootPassword != "***" {
+		t.Fatalf("RootPassword = %q, want ***", redacted.RootPassword)
+	}
+	if cfg.Auth.Password != "secret" {
+		t.Fatalf("original Password mutated: %q", cfg.Auth.Password)
+	}
+	if cfg.RootPassword != "change-me" {
+		t.Fatalf("original RootPassword mutated: %q", cfg.RootPassword)
+	}
+
+	empty := config.Redact(config.Config{})
+	if empty.Auth.Password != "" || empty.Auth.TokenSecret != "" || empty.RootPassword != "" {
+		t.Fatalf("empty secrets should stay empty: %+v", empty)
+	}
+}

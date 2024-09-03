@@ -11,7 +11,27 @@ import (
 )
 
 // Override carries optional CLI/env values that win over file contents.
-type Override struct{}
+type Override struct {
+	ProxmoxHost  *string
+	ProxmoxPort  *int
+	SSHPort      *int
+	Node         *string
+	User         *string
+	Password     *string
+	TokenID      *string
+	TokenSecret  *string
+	VMID         *int
+	VMName       *string
+	MemoryMiB    *int
+	Cores        *int
+	DiskSize     *string
+	RootPassword *string
+	Storage      *string
+	Bridge       *string
+	OutputQcow2  *string
+	WorkDir      *string
+	InsecureTLS  *bool
+}
 
 type fileConfig struct {
 	ProxmoxHost  string `json:"proxmox_host" yaml:"proxmox_host"`
@@ -62,7 +82,8 @@ func Load(path string, overrides Override) (Config, error) {
 	}
 
 	c := configFromFile(fc)
-	_ = overrides
+	applyEnv(&c)
+	applyOverride(&c, overrides)
 	ApplyDefaults(&c)
 	return c, nil
 }
@@ -90,5 +111,77 @@ func configFromFile(fc fileConfig) Config {
 		OutputQcow2:  fc.Output,
 		WorkDir:      fc.WorkDir,
 		InsecureTLS:  fc.InsecureTLS,
+	}
+}
+
+func applyEnv(c *Config) {
+	if v := os.Getenv("PROXIMA_PASSWORD"); v != "" {
+		c.Auth.Password = v
+	}
+	if v := os.Getenv("PROXIMA_TOKEN_SECRET"); v != "" {
+		c.Auth.TokenSecret = v
+	}
+	if v := os.Getenv("PROXIMA_ROOT_PASSWORD"); v != "" {
+		c.RootPassword = v
+	}
+}
+
+func applyOverride(c *Config, o Override) {
+	if o.ProxmoxHost != nil {
+		c.ProxmoxHost = *o.ProxmoxHost
+	}
+	if o.ProxmoxPort != nil {
+		c.ProxmoxPort = *o.ProxmoxPort
+	}
+	if o.SSHPort != nil {
+		c.SSHPort = *o.SSHPort
+	}
+	if o.Node != nil {
+		c.Node = *o.Node
+	}
+	if o.User != nil {
+		c.Auth.User = *o.User
+	}
+	if o.Password != nil {
+		c.Auth.Password = *o.Password
+	}
+	if o.TokenID != nil {
+		c.Auth.TokenID = *o.TokenID
+	}
+	if o.TokenSecret != nil {
+		c.Auth.TokenSecret = *o.TokenSecret
+	}
+	if o.VMID != nil {
+		c.VMID = *o.VMID
+	}
+	if o.VMName != nil {
+		c.VMName = *o.VMName
+	}
+	if o.MemoryMiB != nil {
+		c.MemoryMiB = *o.MemoryMiB
+	}
+	if o.Cores != nil {
+		c.Cores = *o.Cores
+	}
+	if o.DiskSize != nil {
+		c.DiskSize = *o.DiskSize
+	}
+	if o.RootPassword != nil {
+		c.RootPassword = *o.RootPassword
+	}
+	if o.Storage != nil {
+		c.Storage = *o.Storage
+	}
+	if o.Bridge != nil {
+		c.Bridge = *o.Bridge
+	}
+	if o.OutputQcow2 != nil {
+		c.OutputQcow2 = *o.OutputQcow2
+	}
+	if o.WorkDir != nil {
+		c.WorkDir = *o.WorkDir
+	}
+	if o.InsecureTLS != nil {
+		c.InsecureTLS = *o.InsecureTLS
 	}
 }
