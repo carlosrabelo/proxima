@@ -63,3 +63,29 @@ func TestRenderContainsPackagesAndServices(t *testing.T) {
 		}
 	}
 }
+
+func TestWriteFileMode0755(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "setup.sh")
+	if err := script.WriteFile(path, script.Params{RootPassword: "test-root-pass"}); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mode := info.Mode().Perm(); mode != 0o755 {
+		t.Fatalf("mode = %o, want 0755", mode)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := script.Render(script.Params{RootPassword: "test-root-pass"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != want {
+		t.Fatal("WriteFile content does not match Render output")
+	}
+}

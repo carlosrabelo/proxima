@@ -3,6 +3,7 @@ package script
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -43,4 +44,16 @@ func Render(p Params) (string, error) {
 	b.WriteString("fi\n")
 
 	return b.String(), nil
+}
+
+// WriteFile writes the rendered setup.sh to path with mode 0755.
+func WriteFile(path string, p Params) error {
+	content, err := Render(p)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(path, []byte(content), 0o755); err != nil {
+		return err
+	}
+	return os.Chmod(path, 0o755)
 }
