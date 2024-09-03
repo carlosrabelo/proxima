@@ -35,6 +35,7 @@ func NewRootCommand() *cobra.Command {
 		},
 	})
 	root.AddCommand(newConfigCommand())
+	root.AddCommand(newScriptCommand())
 
 	return root
 }
