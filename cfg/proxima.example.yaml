@@ -1,0 +1,26 @@
+# Example Proxima configuration (YAML).
+# Copy this file and replace placeholder secrets before use.
+
+proxmox_host: "192.168.1.10"
+proxmox_port: 8006
+ssh_port: 22
+node: "pve"
+
+# Password authentication (default in this example):
+user: "root@pam"
+password: "secret"
+# Token authentication (alternative — comment out user/password above and uncomment):
+# token_id: "root@pam!proxima"
+# token_secret: "uuid-secret"
+
+vmid: 200
+name: "alpine-docker"
+memory: 2048
+cores: 2
+disk_size: "8G"
+root_password: "change-me"
+storage: "local-lvm"
+bridge: "vmbr0"
+output: "alpine-ready.qcow2"
+work_dir: ".proxima-work"
+insecure_tls: false
