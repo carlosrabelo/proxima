@@ -146,6 +146,12 @@ func TestBuildInvokesPrivilegedAlpine(t *testing.T) {
 	if !containsArg(runArgs, mount) {
 		t.Fatalf("missing mount %q: %v", mount, runArgs)
 	}
+	if !containsArg(runArgs, "/dev:/dev") {
+		t.Fatalf("missing /dev mount: %v", runArgs)
+	}
+	if !containsArg(runArgs, "/lib/modules:/lib/modules:ro") {
+		t.Fatalf("missing /lib/modules mount: %v", runArgs)
+	}
 }
 
 func TestBuildMovesQcow2ToOutput(t *testing.T) {

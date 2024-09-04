@@ -96,13 +96,15 @@ func (b *Builder) Build(ctx context.Context, cfg config.Config) (Result, error) 
 	runArgs := []string{
 		"run", "--rm", "--privileged",
 		"-v", absWork + ":/work",
+		"-v", "/dev:/dev",
+		"-v", "/lib/modules:/lib/modules:ro",
 		"-w", "/work",
 		"alpine:latest",
 		"/bin/sh", "-c", bootstrap,
 	}
-	var runErr bytes.Buffer
-	if err := b.Docker.Run(ctx, runArgs, io.Discard, &runErr); err != nil {
-		detail := strings.TrimSpace(runErr.String())
+	var runOut bytes.Buffer
+	if err := b.Docker.Run(ctx, runArgs, &runOut, &runOut); err != nil {
+		detail := strings.TrimSpace(runOut.String())
 		if detail == "" {
 			detail = err.Error()
 		}
@@ -160,17 +162,20 @@ func copyFile(src, dst string) error {
 
 // containerBootstrap installs alpine-make-vm-image and builds /work/image.qcow2.
 // Uses virtio/serial defaults suitable for Proxmox (tool defaults).
+// --script-chroot is a boolean flag; positional args are <image> [<script>].
 func containerBootstrap(diskSize string) string {
 	var b strings.Builder
 	b.WriteString("set -e\n")
-	b.WriteString("apk add --no-cache bash git wget qemu-img\n")
+	b.WriteString("apk add --no-cache bash git wget qemu-img kmod\n")
+	b.WriteString("modprobe nbd max_part=16\n")
 	b.WriteString("if [ ! -d /work/alpine-make-vm-image ]; then\n")
 	b.WriteString("  git clone --depth 1 https://github.com/alpinelinux/alpine-make-vm-image.git /work/alpine-make-vm-image\n")
 	b.WriteString("fi\n")
 	b.WriteString("/work/alpine-make-vm-image/alpine-make-vm-image \\\n")
 	b.WriteString("  --image-format qcow2 \\\n")
 	b.WriteString(fmt.Sprintf("  --image-size %s \\\n", diskSize))
-	b.WriteString("  --script-chroot /work/setup.sh \\\n")
-	b.WriteString("  /work/image.qcow2\n")
+	b.WriteString("  --script-chroot \\\n")
+	b.WriteString("  /work/image.qcow2 \\\n")
+	b.WriteString("  /work/setup.sh\n")
 	return b.String()
 }
