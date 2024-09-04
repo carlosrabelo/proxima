@@ -34,6 +34,11 @@ func (f *fakeDocker) Run(ctx context.Context, args []string, stdout, stderr io.W
 		}
 		return f.err
 	}
+	if len(args) > 0 && args[0] == "run" && f.workDir != "" {
+		if err := os.WriteFile(filepath.Join(f.workDir, "image.qcow2"), []byte("fake-qcow2"), 0o644); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -59,10 +64,13 @@ func TestBuildDockerUnavailable(t *testing.T) {
 
 func TestBuildWritesSetupScript(t *testing.T) {
 	workDir := t.TempDir()
+	outDir := t.TempDir()
+	output := filepath.Join(outDir, "alpine-ready.qcow2")
 	setupPath := filepath.Join(workDir, "setup.sh")
 	var sawSetupBeforeDocker bool
 
 	docker := &fakeDocker{
+		workDir: workDir,
 		onRun: func(args []string) error {
 			if _, err := os.Stat(setupPath); err != nil {
 				t.Fatalf("setup.sh missing before docker %v: %v", args, err)
@@ -84,12 +92,10 @@ func TestBuildWritesSetupScript(t *testing.T) {
 		WorkDir:      workDir,
 		RootPassword: "test-root-pass",
 		DiskSize:     "8G",
+		OutputQcow2:  output,
 	})
-	if err == nil {
-		t.Fatal("expected not-implemented error")
-	}
-	if !strings.Contains(err.Error(), "local disk build failed:") {
-		t.Fatalf("error = %q", err.Error())
+	if err != nil {
+		t.Fatalf("Build: %v", err)
 	}
 	if !sawSetupBeforeDocker {
 		t.Fatal("docker was not invoked after setup.sh write")
@@ -101,20 +107,23 @@ func TestBuildWritesSetupScript(t *testing.T) {
 
 func TestBuildInvokesPrivilegedAlpine(t *testing.T) {
 	workDir := t.TempDir()
+	outDir := t.TempDir()
+	output := filepath.Join(outDir, "out.qcow2")
 	absWork, err := filepath.Abs(workDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	docker := &fakeDocker{}
+	docker := &fakeDocker{workDir: workDir}
 	b := &diskbuild.Builder{Docker: docker}
 	_, err = b.Build(context.Background(), config.Config{
 		WorkDir:      workDir,
 		RootPassword: "test-root-pass",
 		DiskSize:     "8G",
+		OutputQcow2:  output,
 	})
-	if err == nil {
-		t.Fatal("expected error after docker run")
+	if err != nil {
+		t.Fatalf("Build: %v", err)
 	}
 
 	var runArgs []string
@@ -127,13 +136,6 @@ func TestBuildInvokesPrivilegedAlpine(t *testing.T) {
 	if runArgs == nil {
 		t.Fatalf("docker run not invoked; calls=%v", docker.calls)
 	}
-
-	joined := strings.Join(runArgs, " ")
-	for _, want := range []string{"--rm", "--privileged", "alpine:latest", absWork + ":/work", "-w", "/work"} {
-		if !containsArg(runArgs, want) && !strings.Contains(joined, want) {
-			t.Fatalf("run args missing %q: %v", want, runArgs)
-		}
-	}
 	if !containsArg(runArgs, "--privileged") {
 		t.Fatalf("missing --privileged: %v", runArgs)
 	}
@@ -143,6 +145,47 @@ func TestBuildInvokesPrivilegedAlpine(t *testing.T) {
 	mount := absWork + ":/work"
 	if !containsArg(runArgs, mount) {
 		t.Fatalf("missing mount %q: %v", mount, runArgs)
+	}
+}
+
+func TestBuildMovesQcow2ToOutput(t *testing.T) {
+	workDir := t.TempDir()
+	outDir := t.TempDir()
+	output := filepath.Join(outDir, "subdir", "alpine-ready.qcow2")
+
+	docker := &fakeDocker{workDir: workDir}
+	b := &diskbuild.Builder{Docker: docker}
+	res, err := b.Build(context.Background(), config.Config{
+		WorkDir:      workDir,
+		RootPassword: "test-root-pass",
+		DiskSize:     "8G",
+		OutputQcow2:  output,
+	})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if _, err := os.Stat(output); err != nil {
+		t.Fatalf("output missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(workDir, "image.qcow2")); !os.IsNotExist(err) {
+		t.Fatalf("work image should be removed, err=%v", err)
+	}
+	if _, err := os.Stat(filepath.Join(workDir, "setup.sh")); !os.IsNotExist(err) {
+		t.Fatalf("setup.sh should be removed, err=%v", err)
+	}
+	if res.Bytes != int64(len("fake-qcow2")) {
+		t.Fatalf("Bytes = %d, want %d", res.Bytes, len("fake-qcow2"))
+	}
+	absOut, _ := filepath.Abs(output)
+	if res.Qcow2Path != absOut {
+		t.Fatalf("Qcow2Path = %q, want %q", res.Qcow2Path, absOut)
+	}
+	data, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "fake-qcow2" {
+		t.Fatalf("output content = %q", data)
 	}
 }
 

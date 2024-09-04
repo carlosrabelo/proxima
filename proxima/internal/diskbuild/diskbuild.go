@@ -101,7 +101,62 @@ func (b *Builder) Build(ctx context.Context, cfg config.Config) (Result, error) 
 		return Result{}, fmt.Errorf("local disk build failed: %s", detail)
 	}
 
-	return Result{}, fmt.Errorf("local disk build failed: not implemented")
+	output := cfg.OutputQcow2
+	if output == "" {
+		output = "alpine-ready.qcow2"
+	}
+	if _, err := os.Stat(imagePath); err != nil {
+		cleanup()
+		return Result{}, fmt.Errorf("local disk build failed: image.qcow2 missing after container exit")
+	}
+
+	if dir := filepath.Dir(output); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			cleanup()
+			_ = os.Remove(output)
+			return Result{}, fmt.Errorf("local disk build failed: %w", err)
+		}
+	}
+
+	if err := os.Rename(imagePath, output); err != nil {
+		if copyErr := copyFile(imagePath, output); copyErr != nil {
+			cleanup()
+			_ = os.Remove(output)
+			return Result{}, fmt.Errorf("local disk build failed: %w", err)
+		}
+		_ = os.Remove(imagePath)
+	}
+
+	_ = os.Remove(setupPath)
+	_ = os.Remove(imagePath)
+
+	info, err := os.Stat(output)
+	if err != nil {
+		_ = os.Remove(output)
+		return Result{}, fmt.Errorf("local disk build failed: %w", err)
+	}
+	absOut, err := filepath.Abs(output)
+	if err != nil {
+		absOut = output
+	}
+	return Result{Qcow2Path: absOut, Bytes: info.Size()}, nil
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Close()
 }
 
 // containerBootstrap installs alpine-make-vm-image and builds /work/image.qcow2.
