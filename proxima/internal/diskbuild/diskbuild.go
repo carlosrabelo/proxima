@@ -43,23 +43,33 @@ func (b *Builder) Build(ctx context.Context, cfg config.Config) (Result, error) 
 	}
 	setupPath := filepath.Join(workDir, "setup.sh")
 	imagePath := filepath.Join(workDir, "image.qcow2")
+	output := cfg.OutputQcow2
+	if output == "" {
+		output = "alpine-ready.qcow2"
+	}
+	outputTouched := false
 
 	cleanup := func() {
 		_ = os.Remove(setupPath)
 		_ = os.Remove(imagePath)
+		if outputTouched {
+			_ = os.Remove(output)
+		}
+	}
+	fail := func(format string, args ...any) (Result, error) {
+		cleanup()
+		return Result{}, fmt.Errorf(format, args...)
 	}
 
 	if err := os.MkdirAll(workDir, 0o755); err != nil {
 		return Result{}, fmt.Errorf("local disk build failed: %w", err)
 	}
 	if err := os.Chmod(workDir, 0o755); err != nil {
-		cleanup()
-		return Result{}, fmt.Errorf("local disk build failed: %w", err)
+		return fail("local disk build failed: %w", err)
 	}
 
 	if err := script.WriteFile(setupPath, script.Params{RootPassword: cfg.RootPassword}); err != nil {
-		cleanup()
-		return Result{}, fmt.Errorf("local disk build failed: %w", err)
+		return fail("local disk build failed: %w", err)
 	}
 
 	var stderr bytes.Buffer
@@ -74,8 +84,7 @@ func (b *Builder) Build(ctx context.Context, cfg config.Config) (Result, error) 
 
 	absWork, err := filepath.Abs(workDir)
 	if err != nil {
-		cleanup()
-		return Result{}, fmt.Errorf("local disk build failed: %w", err)
+		return fail("local disk build failed: %w", err)
 	}
 
 	diskSize := cfg.DiskSize
@@ -93,36 +102,27 @@ func (b *Builder) Build(ctx context.Context, cfg config.Config) (Result, error) 
 	}
 	var runErr bytes.Buffer
 	if err := b.Docker.Run(ctx, runArgs, io.Discard, &runErr); err != nil {
-		cleanup()
 		detail := strings.TrimSpace(runErr.String())
 		if detail == "" {
 			detail = err.Error()
 		}
-		return Result{}, fmt.Errorf("local disk build failed: %s", detail)
+		return fail("local disk build failed: %s", detail)
 	}
 
-	output := cfg.OutputQcow2
-	if output == "" {
-		output = "alpine-ready.qcow2"
-	}
 	if _, err := os.Stat(imagePath); err != nil {
-		cleanup()
-		return Result{}, fmt.Errorf("local disk build failed: image.qcow2 missing after container exit")
+		return fail("local disk build failed: image.qcow2 missing after container exit")
 	}
 
 	if dir := filepath.Dir(output); dir != "" && dir != "." {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
-			cleanup()
-			_ = os.Remove(output)
-			return Result{}, fmt.Errorf("local disk build failed: %w", err)
+			return fail("local disk build failed: %w", err)
 		}
 	}
 
+	outputTouched = true
 	if err := os.Rename(imagePath, output); err != nil {
 		if copyErr := copyFile(imagePath, output); copyErr != nil {
-			cleanup()
-			_ = os.Remove(output)
-			return Result{}, fmt.Errorf("local disk build failed: %w", err)
+			return fail("local disk build failed: %w", err)
 		}
 		_ = os.Remove(imagePath)
 	}
@@ -132,8 +132,7 @@ func (b *Builder) Build(ctx context.Context, cfg config.Config) (Result, error) 
 
 	info, err := os.Stat(output)
 	if err != nil {
-		_ = os.Remove(output)
-		return Result{}, fmt.Errorf("local disk build failed: %w", err)
+		return fail("local disk build failed: %w", err)
 	}
 	absOut, err := filepath.Abs(output)
 	if err != nil {

@@ -189,6 +189,49 @@ func TestBuildMovesQcow2ToOutput(t *testing.T) {
 	}
 }
 
+func TestBuildCleansWorkDirOnFailure(t *testing.T) {
+	workDir := t.TempDir()
+	outDir := t.TempDir()
+	output := filepath.Join(outDir, "alpine-ready.qcow2")
+	setupPath := filepath.Join(workDir, "setup.sh")
+	imagePath := filepath.Join(workDir, "image.qcow2")
+
+	docker := &fakeDocker{
+		onRun: func(args []string) error {
+			if len(args) > 0 && args[0] == "run" {
+				if err := os.WriteFile(imagePath, []byte("partial-image"), 0o644); err != nil {
+					return err
+				}
+				return errors.New("container failed")
+			}
+			return nil
+		},
+	}
+
+	b := &diskbuild.Builder{Docker: docker}
+	_, err := b.Build(context.Background(), config.Config{
+		WorkDir:      workDir,
+		RootPassword: "test-root-pass",
+		DiskSize:     "8G",
+		OutputQcow2:  output,
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.HasPrefix(err.Error(), "local disk build failed: ") {
+		t.Fatalf("error = %q", err.Error())
+	}
+	if _, err := os.Stat(setupPath); !os.IsNotExist(err) {
+		t.Fatalf("setup.sh should be cleaned, err=%v", err)
+	}
+	if _, err := os.Stat(imagePath); !os.IsNotExist(err) {
+		t.Fatalf("image.qcow2 should be cleaned, err=%v", err)
+	}
+	if _, err := os.Stat(output); !os.IsNotExist(err) {
+		t.Fatalf("output should not remain from failed build, err=%v", err)
+	}
+}
+
 func containsArg(args []string, want string) bool {
 	for _, a := range args {
 		if a == want {
