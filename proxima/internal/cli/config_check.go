@@ -43,6 +43,11 @@ func newConfigCheckCommand() *cobra.Command {
 		},
 	}
 
+	bindConfigFlags(cmd, f)
+	return cmd
+}
+
+func bindConfigFlags(cmd *cobra.Command, f *configFlags) {
 	cmd.Flags().StringVarP(&f.configPath, "config", "c", "", "config file path (.yaml, .yml, or .json)")
 	cmd.Flags().StringVar(&f.proxmoxHost, "proxmox-host", "", "Proxmox host")
 	cmd.Flags().IntVar(&f.proxmoxPort, "proxmox-port", 0, "Proxmox API port")
@@ -63,8 +68,6 @@ func newConfigCheckCommand() *cobra.Command {
 	cmd.Flags().StringVar(&f.output, "output", "", "local qcow2 output path")
 	cmd.Flags().StringVar(&f.workDir, "work-dir", "", "work directory")
 	cmd.Flags().BoolVar(&f.insecureTLS, "insecure-tls", false, "skip TLS verify")
-
-	return cmd
 }
 
 func newConfigCommand() *cobra.Command {

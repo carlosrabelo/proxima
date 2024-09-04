@@ -36,6 +36,7 @@ func NewRootCommand() *cobra.Command {
 	})
 	root.AddCommand(newConfigCommand())
 	root.AddCommand(newScriptCommand())
+	root.AddCommand(newBuildCommand())
 
 	return root
 }
@@ -54,6 +55,9 @@ func ExecuteWithArgs(args []string, stdout, stderr io.Writer) int {
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintf(stderr, "Error: %s\n", err)
+		if ce, ok := err.(interface{ ExitCode() int }); ok {
+			return ce.ExitCode()
+		}
 		return 1
 	}
 	return 0
