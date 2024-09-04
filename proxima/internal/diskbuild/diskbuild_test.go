@@ -98,3 +98,59 @@ func TestBuildWritesSetupScript(t *testing.T) {
 		t.Fatalf("expected docker version first, got %v", docker.calls)
 	}
 }
+
+func TestBuildInvokesPrivilegedAlpine(t *testing.T) {
+	workDir := t.TempDir()
+	absWork, err := filepath.Abs(workDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	docker := &fakeDocker{}
+	b := &diskbuild.Builder{Docker: docker}
+	_, err = b.Build(context.Background(), config.Config{
+		WorkDir:      workDir,
+		RootPassword: "test-root-pass",
+		DiskSize:     "8G",
+	})
+	if err == nil {
+		t.Fatal("expected error after docker run")
+	}
+
+	var runArgs []string
+	for _, call := range docker.calls {
+		if len(call) > 0 && call[0] == "run" {
+			runArgs = call
+			break
+		}
+	}
+	if runArgs == nil {
+		t.Fatalf("docker run not invoked; calls=%v", docker.calls)
+	}
+
+	joined := strings.Join(runArgs, " ")
+	for _, want := range []string{"--rm", "--privileged", "alpine:latest", absWork + ":/work", "-w", "/work"} {
+		if !containsArg(runArgs, want) && !strings.Contains(joined, want) {
+			t.Fatalf("run args missing %q: %v", want, runArgs)
+		}
+	}
+	if !containsArg(runArgs, "--privileged") {
+		t.Fatalf("missing --privileged: %v", runArgs)
+	}
+	if !containsArg(runArgs, "alpine:latest") {
+		t.Fatalf("missing alpine:latest: %v", runArgs)
+	}
+	mount := absWork + ":/work"
+	if !containsArg(runArgs, mount) {
+		t.Fatalf("missing mount %q: %v", mount, runArgs)
+	}
+}
+
+func containsArg(args []string, want string) bool {
+	for _, a := range args {
+		if a == want {
+			return true
+		}
+	}
+	return false
+}
