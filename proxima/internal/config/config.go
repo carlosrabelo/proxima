@@ -19,22 +19,24 @@ type Auth struct {
 
 // Config is the resolved configuration after load, merge, and defaults.
 type Config struct {
-	ProxmoxHost  string
-	ProxmoxPort  int
-	SSHPort      int
-	Node         string
-	Auth         Auth
-	VMID         int
-	VMName       string
-	MemoryMiB    int
-	Cores        int
-	DiskSize     string
-	RootPassword string
-	Storage      string
-	Bridge       string
-	OutputQcow2  string
-	WorkDir      string
-	InsecureTLS  bool
+	ProxmoxHost       string
+	ProxmoxPort       int
+	SSHPort           int
+	Node              string
+	Auth              Auth
+	VMID              int
+	VMName            string
+	MemoryMiB         int
+	Cores             int
+	DiskSize          string
+	RootPassword      string
+	Storage           string
+	Bridge            string
+	OutputQcow2       string
+	WorkDir           string
+	InsecureTLS       bool
+	SSHUser           string
+	SSHPrivateKeyPath string
 }
 
 // ApplyDefaults fills zero-valued optional fields with constitution defaults.

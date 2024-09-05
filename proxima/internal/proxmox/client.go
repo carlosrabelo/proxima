@@ -16,13 +16,18 @@ import (
 
 // Client talks to the Proxmox VE HTTP API.
 type Client struct {
-	httpClient  *http.Client
-	baseURL     string
-	node        string
-	auth        config.Auth
-	ticket      string
-	csrfToken   string
-	insecureTLS bool
+	httpClient        *http.Client
+	baseURL           string
+	node              string
+	auth              config.Auth
+	ticket            string
+	csrfToken         string
+	insecureTLS       bool
+	sshHost           string
+	sshPort           int
+	sshUser           string
+	sshPrivateKeyPath string
+	sshPassword       string
 }
 
 type ticketResponse struct {
@@ -43,15 +48,33 @@ func NewClient(cfg config.Config) (*Client, error) {
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: cfg.InsecureTLS}, //nolint:gosec // intentional when InsecureTLS
 	}
+	sshPort := cfg.SSHPort
+	if sshPort == 0 {
+		sshPort = 22
+	}
+	identity := cfg.Auth.User
+	if identity == "" {
+		identity = cfg.Auth.TokenID
+	}
+	sshUser := cfg.SSHUser
+	if sshUser == "" {
+		sshUser = DeriveSSHUser(identity)
+	}
+
 	c := &Client{
 		httpClient: &http.Client{
 			Timeout:   30 * time.Second,
 			Transport: transport,
 		},
-		baseURL:     baseURL,
-		node:        cfg.Node,
-		auth:        cfg.Auth,
-		insecureTLS: cfg.InsecureTLS,
+		baseURL:           baseURL,
+		node:              cfg.Node,
+		auth:              cfg.Auth,
+		insecureTLS:       cfg.InsecureTLS,
+		sshHost:           cfg.ProxmoxHost,
+		sshPort:           sshPort,
+		sshUser:           sshUser,
+		sshPrivateKeyPath: cfg.SSHPrivateKeyPath,
+		sshPassword:       cfg.Auth.Password,
 	}
 
 	hasPassword := cfg.Auth.User != "" || cfg.Auth.Password != ""
