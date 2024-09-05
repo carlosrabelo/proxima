@@ -52,13 +52,32 @@ func NewClient(cfg config.Config) (*Client, error) {
 		auth:    cfg.Auth,
 	}
 
-	if cfg.Auth.User != "" || cfg.Auth.Password != "" {
+	hasPassword := cfg.Auth.User != "" || cfg.Auth.Password != ""
+	hasToken := cfg.Auth.TokenID != "" || cfg.Auth.TokenSecret != ""
+	switch {
+	case hasPassword && !hasToken:
 		if err := c.authenticatePassword(context.Background()); err != nil {
 			return nil, err
 		}
+	case hasToken && !hasPassword:
+		// Token auth attaches Authorization on each request; no ticket call.
 	}
 
 	return c, nil
+}
+
+// ApplyAuth sets Proxmox authentication on req (cookie/CSRF or API token header).
+func (c *Client) ApplyAuth(req *http.Request) {
+	if c.auth.TokenID != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("PVEAPIToken=%s=%s", c.auth.TokenID, c.auth.TokenSecret))
+		return
+	}
+	if c.ticket != "" {
+		req.AddCookie(&http.Cookie{Name: "PVEAuthCookie", Value: c.ticket})
+		if req.Method != http.MethodGet && req.Method != http.MethodHead && c.csrfToken != "" {
+			req.Header.Set("CSRFPreventionToken", c.csrfToken)
+		}
+	}
 }
 
 func (c *Client) authenticatePassword(ctx context.Context) error {
