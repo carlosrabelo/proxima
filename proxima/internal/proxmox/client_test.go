@@ -106,6 +106,33 @@ func TestTokenAuthHeader(t *testing.T) {
 	}
 }
 
+func TestAuthFailure(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api2/json/access/ticket" {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"errors":"auth"}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	host, port := hostPort(t, srv.URL)
+	_, err := proxmox.NewClient(config.Config{
+		ProxmoxHost: host,
+		ProxmoxPort: port,
+		Node:        "pve",
+		Auth:        config.Auth{User: "root@pam", Password: "wrong"},
+		InsecureTLS: true,
+	})
+	if err == nil {
+		t.Fatal("expected auth error")
+	}
+	if err.Error() != "proxmox authentication failed" {
+		t.Fatalf("error = %q, want %q", err.Error(), "proxmox authentication failed")
+	}
+}
+
 func TestNodeStatus(t *testing.T) {
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
