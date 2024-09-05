@@ -122,6 +122,15 @@ func (c *Client) authenticatePassword(ctx context.Context) error {
 	return nil
 }
 
+// NodeStatus checks that the configured node is reachable and returns its name.
+func (c *Client) NodeStatus(ctx context.Context) (string, error) {
+	_, err := c.get(ctx, "/nodes/"+url.PathEscape(c.node)+"/status")
+	if err != nil {
+		return "", err
+	}
+	return c.node, nil
+}
+
 // Version returns the Proxmox API version string.
 func (c *Client) Version(ctx context.Context) (string, error) {
 	body, err := c.get(ctx, "/version")

@@ -106,6 +106,48 @@ func TestTokenAuthHeader(t *testing.T) {
 	}
 }
 
+func TestNodeStatus(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api2/json/access/ticket":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": map[string]string{
+					"ticket":              "PVE:t",
+					"CSRFPreventionToken": "csrf",
+				},
+			})
+		case "/api2/json/nodes/pve/status":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": map[string]any{
+					"uptime": 123,
+				},
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	host, port := hostPort(t, srv.URL)
+	client, err := proxmox.NewClient(config.Config{
+		ProxmoxHost: host,
+		ProxmoxPort: port,
+		Node:        "pve",
+		Auth:        config.Auth{User: "root@pam", Password: "secret"},
+		InsecureTLS: true,
+	})
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	name, err := client.NodeStatus(context.Background())
+	if err != nil {
+		t.Fatalf("NodeStatus: %v", err)
+	}
+	if name != "pve" {
+		t.Fatalf("node = %q, want pve", name)
+	}
+}
+
 func TestVersionParse(t *testing.T) {
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
