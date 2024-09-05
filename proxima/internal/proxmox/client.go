@@ -16,12 +16,13 @@ import (
 
 // Client talks to the Proxmox VE HTTP API.
 type Client struct {
-	httpClient *http.Client
-	baseURL    string
-	node       string
-	auth       config.Auth
-	ticket     string
-	csrfToken  string
+	httpClient  *http.Client
+	baseURL     string
+	node        string
+	auth        config.Auth
+	ticket      string
+	csrfToken   string
+	insecureTLS bool
 }
 
 type ticketResponse struct {
@@ -47,9 +48,10 @@ func NewClient(cfg config.Config) (*Client, error) {
 			Timeout:   30 * time.Second,
 			Transport: transport,
 		},
-		baseURL: baseURL,
-		node:    cfg.Node,
-		auth:    cfg.Auth,
+		baseURL:     baseURL,
+		node:        cfg.Node,
+		auth:        cfg.Auth,
+		insecureTLS: cfg.InsecureTLS,
 	}
 
 	hasPassword := cfg.Auth.User != "" || cfg.Auth.Password != ""
@@ -180,3 +182,12 @@ func (c *Client) Ticket() string { return c.ticket }
 
 // CSRFToken returns the CSRF prevention token.
 func (c *Client) CSRFToken() string { return c.csrfToken }
+
+// TLSInsecureSkipVerify reports whether TLS verification is disabled.
+func (c *Client) TLSInsecureSkipVerify() bool {
+	tr, ok := c.httpClient.Transport.(*http.Transport)
+	if !ok || tr.TLSClientConfig == nil {
+		return c.insecureTLS
+	}
+	return tr.TLSClientConfig.InsecureSkipVerify
+}

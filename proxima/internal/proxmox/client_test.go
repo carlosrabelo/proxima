@@ -106,6 +106,46 @@ func TestTokenAuthHeader(t *testing.T) {
 	}
 }
 
+func TestInsecureTLSFlagPropagates(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]string{
+				"ticket":              "PVE:t",
+				"CSRFPreventionToken": "csrf",
+			},
+		})
+	}))
+	defer srv.Close()
+
+	host, port := hostPort(t, srv.URL)
+	secure, err := proxmox.NewClient(config.Config{
+		ProxmoxHost: host,
+		ProxmoxPort: port,
+		Node:        "pve",
+		Auth:        config.Auth{User: "root@pam", Password: "secret"},
+		InsecureTLS: false,
+	})
+	// TLS server uses unknown CA; without InsecureTLS NewClient auth should fail to dial.
+	if err == nil {
+		t.Fatal("expected TLS failure when InsecureTLS is false")
+	}
+	_ = secure
+
+	insecure, err := proxmox.NewClient(config.Config{
+		ProxmoxHost: host,
+		ProxmoxPort: port,
+		Node:        "pve",
+		Auth:        config.Auth{User: "root@pam", Password: "secret"},
+		InsecureTLS: true,
+	})
+	if err != nil {
+		t.Fatalf("NewClient insecure: %v", err)
+	}
+	if !insecure.TLSInsecureSkipVerify() {
+		t.Fatal("InsecureSkipVerify should be true when InsecureTLS is set")
+	}
+}
+
 func TestAuthFailure(t *testing.T) {
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api2/json/access/ticket" {
