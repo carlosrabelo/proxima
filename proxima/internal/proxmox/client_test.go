@@ -1,6 +1,7 @@
 package proxmox_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -102,6 +103,49 @@ func TestTokenAuthHeader(t *testing.T) {
 	}
 	if client.Ticket() != "" {
 		t.Fatalf("ticket should be empty for token auth, got %q", client.Ticket())
+	}
+}
+
+func TestVersionParse(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api2/json/access/ticket":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": map[string]string{
+					"ticket":              "PVE:t",
+					"CSRFPreventionToken": "csrf",
+				},
+			})
+		case "/api2/json/version":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": map[string]string{
+					"version": "8.2.2",
+					"release": "8.2",
+				},
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	host, port := hostPort(t, srv.URL)
+	client, err := proxmox.NewClient(config.Config{
+		ProxmoxHost: host,
+		ProxmoxPort: port,
+		Node:        "pve",
+		Auth:        config.Auth{User: "root@pam", Password: "secret"},
+		InsecureTLS: true,
+	})
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	ver, err := client.Version(context.Background())
+	if err != nil {
+		t.Fatalf("Version: %v", err)
+	}
+	if ver != "8.2.2" {
+		t.Fatalf("version = %q, want 8.2.2", ver)
 	}
 }
 

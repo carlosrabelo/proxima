@@ -122,6 +122,50 @@ func (c *Client) authenticatePassword(ctx context.Context) error {
 	return nil
 }
 
+// Version returns the Proxmox API version string.
+func (c *Client) Version(ctx context.Context) (string, error) {
+	body, err := c.get(ctx, "/version")
+	if err != nil {
+		return "", err
+	}
+	var parsed struct {
+		Data struct {
+			Version string `json:"version"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &parsed); err != nil || parsed.Data.Version == "" {
+		return "", fmt.Errorf("proxmox api: invalid response")
+	}
+	return parsed.Data.Version, nil
+}
+
+func (c *Client) get(ctx context.Context, path string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("proxmox api unreachable: %w", err)
+	}
+	c.ApplyAuth(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("proxmox api unreachable: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("proxmox api: invalid response")
+	}
+
+	switch {
+	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
+		return nil, fmt.Errorf("proxmox authentication failed")
+	case resp.StatusCode < 200 || resp.StatusCode >= 300:
+		return nil, fmt.Errorf("proxmox api error: status %d", resp.StatusCode)
+	}
+	return body, nil
+}
+
 // Ticket returns the PVE auth ticket (tests / later requests).
 func (c *Client) Ticket() string { return c.ticket }
 
