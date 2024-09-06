@@ -73,6 +73,19 @@ func TestUploadCreatesRemoteDir(t *testing.T) {
 	}
 }
 
+func TestUploadMissingLocalFile(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "no-such.qcow2")
+	u := &upload.Uploader{}
+	_, err := u.UploadQcow2(context.Background(), missing, 200)
+	if err == nil {
+		t.Fatal("expected missing local file error")
+	}
+	want := "disk upload failed: local file not found: " + missing
+	if err.Error() != want {
+		t.Fatalf("error = %q, want %q", err.Error(), want)
+	}
+}
+
 func TestUploadSizeMismatchCleansRemote(t *testing.T) {
 	dir := t.TempDir()
 	local := filepath.Join(dir, "disk.qcow2")
