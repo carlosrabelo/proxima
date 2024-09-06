@@ -49,6 +49,48 @@ root_password: "root-secret"
 	}
 }
 
+func TestConfigCheckSSHFlagsOverrideFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "proxima.yaml")
+	content := `
+proxmox_host: "192.168.1.10"
+node: "pve"
+user: "root@pam"
+password: "super-secret"
+vmid: 200
+name: "alpine-docker"
+memory: 2048
+cores: 2
+disk_size: "8G"
+root_password: "root-secret"
+ssh_user: "file-user"
+ssh_private_key_path: "/file/key"
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := cli.ExecuteWithArgs([]string{
+		"config", "check", "-c", path,
+		"--ssh-user", "flag-user",
+		"--ssh-private-key", "/flag/key",
+	}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("exit code = %d, stderr=%q", code, stderr.String())
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "ssh_user: flag-user") {
+		t.Fatalf("missing flag ssh_user: %q", out)
+	}
+	if !strings.Contains(out, "ssh_private_key_path: /flag/key") {
+		t.Fatalf("missing flag ssh_private_key_path: %q", out)
+	}
+	if strings.Contains(out, "file-user") || strings.Contains(out, "/file/key") {
+		t.Fatalf("file SSH values should be overridden: %q", out)
+	}
+}
+
 func TestConfigCheckInvalidExitsOne(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bad.yaml")

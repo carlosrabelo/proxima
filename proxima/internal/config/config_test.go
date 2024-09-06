@@ -22,6 +22,8 @@ memory: 2048
 cores: 2
 disk_size: "8G"
 root_password: "change-me"
+ssh_user: "deploy"
+ssh_private_key_path: "/home/deploy/.ssh/id_ed25519"
 unknown_key: "ignored"
 `
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
@@ -50,6 +52,12 @@ unknown_key: "ignored"
 	if cfg.RootPassword != "change-me" {
 		t.Fatalf("RootPassword = %q", cfg.RootPassword)
 	}
+	if cfg.SSHUser != "deploy" {
+		t.Fatalf("SSHUser = %q, want deploy", cfg.SSHUser)
+	}
+	if cfg.SSHPrivateKeyPath != "/home/deploy/.ssh/id_ed25519" {
+		t.Fatalf("SSHPrivateKeyPath = %q", cfg.SSHPrivateKeyPath)
+	}
 	if cfg.ProxmoxPort != 8006 || cfg.Storage != "local-lvm" || cfg.Bridge != "vmbr0" {
 		t.Fatalf("defaults not applied: port=%d storage=%q bridge=%q", cfg.ProxmoxPort, cfg.Storage, cfg.Bridge)
 	}
@@ -69,6 +77,8 @@ func TestLoadJSON(t *testing.T) {
   "cores": 1,
   "disk_size": "4G",
   "root_password": "root-secret",
+  "ssh_user": "root",
+  "ssh_private_key_path": "/keys/proxima",
   "extra": true
 }`
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
@@ -87,6 +97,9 @@ func TestLoadJSON(t *testing.T) {
 	}
 	if cfg.VMID != 300 || cfg.VMName != "json-vm" {
 		t.Fatalf("VMID=%d VMName=%q", cfg.VMID, cfg.VMName)
+	}
+	if cfg.SSHUser != "root" || cfg.SSHPrivateKeyPath != "/keys/proxima" {
+		t.Fatalf("SSHUser=%q SSHPrivateKeyPath=%q", cfg.SSHUser, cfg.SSHPrivateKeyPath)
 	}
 	if cfg.OutputQcow2 != "alpine-ready.qcow2" || cfg.WorkDir != ".proxima-work" {
 		t.Fatalf("defaults: output=%q work_dir=%q", cfg.OutputQcow2, cfg.WorkDir)
@@ -273,6 +286,8 @@ memory: 2048
 cores: 2
 disk_size: "8G"
 root_password: "file-root"
+ssh_user: "file-user"
+ssh_private_key_path: "/file/key"
 `
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
@@ -281,10 +296,14 @@ root_password: "file-root"
 	name := "from-flag"
 	vmid := 999
 	password := "flag-password"
+	sshUser := "flag-user"
+	sshKey := "/flag/key"
 	cfg, err := config.Load(path, config.Override{
-		VMName:   &name,
-		VMID:     &vmid,
-		Password: &password,
+		VMName:            &name,
+		VMID:              &vmid,
+		Password:          &password,
+		SSHUser:           &sshUser,
+		SSHPrivateKeyPath: &sshKey,
 	})
 	if err != nil {
 		t.Fatalf("Load: %v", err)
@@ -297,6 +316,12 @@ root_password: "file-root"
 	}
 	if cfg.Auth.Password != "flag-password" {
 		t.Fatalf("Password = %q, want flag-password", cfg.Auth.Password)
+	}
+	if cfg.SSHUser != "flag-user" {
+		t.Fatalf("SSHUser = %q, want flag-user", cfg.SSHUser)
+	}
+	if cfg.SSHPrivateKeyPath != "/flag/key" {
+		t.Fatalf("SSHPrivateKeyPath = %q, want /flag/key", cfg.SSHPrivateKeyPath)
 	}
 	if cfg.ProxmoxHost != "192.168.1.10" {
 		t.Fatalf("ProxmoxHost = %q, want file value", cfg.ProxmoxHost)
