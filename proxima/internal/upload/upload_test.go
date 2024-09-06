@@ -73,7 +73,7 @@ func TestUploadCreatesRemoteDir(t *testing.T) {
 	}
 }
 
-func TestUploadSizeMismatch(t *testing.T) {
+func TestUploadSizeMismatchCleansRemote(t *testing.T) {
 	dir := t.TempDir()
 	local := filepath.Join(dir, "disk.qcow2")
 	if err := os.WriteFile(local, []byte("local-bytes"), 0o644); err != nil {
@@ -91,6 +91,7 @@ func TestUploadSizeMismatch(t *testing.T) {
 		},
 	}
 
+	remote := "/var/tmp/proxima/42-disk.qcow2"
 	_, err := u.UploadQcow2(context.Background(), local, 42)
 	if err == nil {
 		t.Fatal("expected size mismatch error")
@@ -98,6 +99,19 @@ func TestUploadSizeMismatch(t *testing.T) {
 	want := "disk upload failed: upload size mismatch: local 11 remote 3"
 	if err.Error() != want {
 		t.Fatalf("error = %q, want %q", err.Error(), want)
+	}
+	if _, ok := fake.files[remote]; ok {
+		t.Fatalf("remote file %q should have been removed", remote)
+	}
+	foundRM := false
+	for _, cmd := range fake.commands {
+		if cmd == "rm -f "+remote {
+			foundRM = true
+			break
+		}
+	}
+	if !foundRM {
+		t.Fatalf("missing rm command in %#v", fake.commands)
 	}
 }
 

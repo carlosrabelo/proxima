@@ -62,18 +62,22 @@ func (u *Uploader) UploadQcow2(ctx context.Context, localPath string, vmid int) 
 	}
 
 	if err := sess.Upload(ctx, localPath, remote); err != nil {
+		removeRemoteBestEffort(ctx, sess, remote)
 		return Result{}, fmt.Errorf("disk upload failed: %w", err)
 	}
 
 	out, err := sess.CombinedOutput(ctx, "stat -c%s "+remote)
 	if err != nil {
+		removeRemoteBestEffort(ctx, sess, remote)
 		return Result{}, fmt.Errorf("disk upload failed: %w", err)
 	}
 	remoteSize, err := strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
 	if err != nil {
+		removeRemoteBestEffort(ctx, sess, remote)
 		return Result{}, fmt.Errorf("disk upload failed: %w", err)
 	}
 	if remoteSize != localSize {
+		removeRemoteBestEffort(ctx, sess, remote)
 		return Result{}, fmt.Errorf("disk upload failed: upload size mismatch: local %d remote %d", localSize, remoteSize)
 	}
 
@@ -82,6 +86,10 @@ func (u *Uploader) UploadQcow2(ctx context.Context, localPath string, vmid int) 
 		RemotePath: remote,
 		Bytes:      localSize,
 	}, nil
+}
+
+func removeRemoteBestEffort(ctx context.Context, sess Session, remotePath string) {
+	_, _ = sess.CombinedOutput(ctx, "rm -f "+remotePath)
 }
 
 func (u *Uploader) open(ctx context.Context) (Session, error) {
