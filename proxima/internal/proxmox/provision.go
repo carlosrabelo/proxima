@@ -78,6 +78,11 @@ func (c *Client) ProvisionVM(ctx context.Context, req ProvisionRequest) (Provisi
 		return ProvisionResult{}, fmt.Errorf("vm provision failed: %w", err)
 	}
 
+	bootCmd := fmt.Sprintf("qm set %d --boot order=scsi0", cfg.VMID)
+	if _, err := sess.CombinedOutput(ctx, bootCmd); err != nil {
+		return ProvisionResult{}, fmt.Errorf("vm provision failed: %w", err)
+	}
+
 	return ProvisionResult{VMID: cfg.VMID, Name: cfg.VMName}, nil
 }
 

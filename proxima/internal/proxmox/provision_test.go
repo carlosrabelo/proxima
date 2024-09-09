@@ -118,3 +118,40 @@ func TestProvisionImportAndAttach(t *testing.T) {
 		t.Fatalf("missing scsi0 attach in %#v", fake.commands)
 	}
 }
+
+func TestProvisionBootAndAgent(t *testing.T) {
+	fake := &fakeSSH{
+		responses: map[string]string{
+			"qm config 200": "unused0: local-lvm:vm-200-disk-0\n",
+		},
+	}
+	client := &proxmox.Client{}
+	client.SetSSHOpenForTest(func(ctx context.Context) (proxmox.SSHSession, error) {
+		return fake, nil
+	})
+
+	_, err := client.ProvisionVM(context.Background(), proxmox.ProvisionRequest{
+		Config: config.Config{
+			VMID:      200,
+			VMName:    "alpine-docker",
+			MemoryMiB: 2048,
+			Cores:     2,
+			Bridge:    "vmbr0",
+			Storage:   "local-lvm",
+		},
+		RemoteDisk: "/var/tmp/proxima/200-disk.qcow2",
+	})
+	if err != nil {
+		t.Fatalf("ProvisionVM: %v", err)
+	}
+
+	sawBoot := false
+	for _, cmd := range fake.commands {
+		if cmd == "qm set 200 --boot order=scsi0" {
+			sawBoot = true
+		}
+	}
+	if !sawBoot {
+		t.Fatalf("missing boot order in %#v", fake.commands)
+	}
+}
