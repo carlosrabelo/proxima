@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"proxima/proxima/internal/config"
 )
@@ -28,6 +29,14 @@ func (c *Client) ProvisionVM(ctx context.Context, req ProvisionRequest) (Provisi
 	if bridge == "" {
 		bridge = "vmbr0"
 	}
+	storage := cfg.Storage
+	if storage == "" {
+		storage = "local-lvm"
+	}
+	remote := req.RemoteDisk
+	if remote == "" {
+		remote = fmt.Sprintf("/var/tmp/proxima/%d-disk.qcow2", cfg.VMID)
+	}
 
 	sess, err := c.SSH(ctx)
 	if err != nil {
@@ -47,7 +56,52 @@ func (c *Client) ProvisionVM(ctx context.Context, req ProvisionRequest) (Provisi
 		return ProvisionResult{}, fmt.Errorf("vm provision failed: %w", err)
 	}
 
+	importCmd := fmt.Sprintf("qm importdisk %d %s %s", cfg.VMID, remote, storage)
+	if _, err := sess.CombinedOutput(ctx, importCmd); err != nil {
+		return ProvisionResult{}, fmt.Errorf("vm provision failed: %w", err)
+	}
+
+	// Attach imported unused disk as scsi0.
+	// Discovery algorithm: prefer the conventional volume name
+	// "<Storage>:vm-<vmid>-disk-0". If that is wrong for the node, parse
+	// `qm config <vmid>` for the first unusedN: line and use its value as
+	// the volume-ref for `qm set <vmid> --scsi0 <volume-ref>`.
+	volumeRef := fmt.Sprintf("%s:vm-%d-disk-0", storage, cfg.VMID)
+	cfgOut, err := sess.CombinedOutput(ctx, fmt.Sprintf("qm config %d", cfg.VMID))
+	if err == nil {
+		if discovered := firstUnusedVolume(string(cfgOut)); discovered != "" {
+			volumeRef = discovered
+		}
+	}
+	attachCmd := fmt.Sprintf("qm set %d --scsi0 %s", cfg.VMID, volumeRef)
+	if _, err := sess.CombinedOutput(ctx, attachCmd); err != nil {
+		return ProvisionResult{}, fmt.Errorf("vm provision failed: %w", err)
+	}
+
 	return ProvisionResult{VMID: cfg.VMID, Name: cfg.VMName}, nil
+}
+
+// firstUnusedVolume returns the value of the first unusedN: line in qm config output.
+func firstUnusedVolume(qmConfig string) string {
+	for _, line := range strings.Split(qmConfig, "\n") {
+		line = strings.TrimSpace(line)
+		key, val, ok := strings.Cut(line, ":")
+		if !ok || !strings.HasPrefix(key, "unused") {
+			continue
+		}
+		n := key[len("unused"):]
+		if n == "" {
+			continue
+		}
+		if _, err := strconv.Atoi(n); err != nil {
+			continue
+		}
+		val = strings.TrimSpace(val)
+		if val != "" {
+			return val
+		}
+	}
+	return ""
 }
 
 // DestroyVM removes a VM with purge.
