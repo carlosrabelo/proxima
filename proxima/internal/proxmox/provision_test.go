@@ -2,6 +2,7 @@ package proxmox_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -159,5 +160,51 @@ func TestProvisionBootAndAgent(t *testing.T) {
 	}
 	if !sawAgent {
 		t.Fatalf("missing agent enable in %#v", fake.commands)
+	}
+}
+
+func TestProvisionDestroysOnImportFailure(t *testing.T) {
+	fake := &fakeSSH{
+		errors: map[string]error{
+			"qm importdisk 200 /var/tmp/proxima/200-disk.qcow2 local-lvm": fmt.Errorf("import boom"),
+		},
+	}
+	client := &proxmox.Client{}
+	client.SetSSHOpenForTest(func(ctx context.Context) (proxmox.SSHSession, error) {
+		return fake, nil
+	})
+
+	_, err := client.ProvisionVM(context.Background(), proxmox.ProvisionRequest{
+		Config: config.Config{
+			VMID:      200,
+			VMName:    "alpine-docker",
+			MemoryMiB: 2048,
+			Cores:     2,
+			Bridge:    "vmbr0",
+			Storage:   "local-lvm",
+		},
+		RemoteDisk: "/var/tmp/proxima/200-disk.qcow2",
+	})
+	if err == nil {
+		t.Fatal("expected import failure")
+	}
+	if !strings.Contains(err.Error(), "vm provision failed:") {
+		t.Fatalf("error = %q", err.Error())
+	}
+
+	sawDestroy, sawRM := false, false
+	for _, cmd := range fake.commands {
+		if cmd == "qm destroy 200 --purge 1" {
+			sawDestroy = true
+		}
+		if cmd == "rm -f /var/tmp/proxima/200-disk.qcow2" {
+			sawRM = true
+		}
+	}
+	if !sawDestroy {
+		t.Fatalf("missing destroy in %#v", fake.commands)
+	}
+	if !sawRM {
+		t.Fatalf("missing staged rm in %#v", fake.commands)
 	}
 }

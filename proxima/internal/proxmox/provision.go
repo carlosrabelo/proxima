@@ -56,9 +56,18 @@ func (c *Client) ProvisionVM(ctx context.Context, req ProvisionRequest) (Provisi
 		return ProvisionResult{}, fmt.Errorf("vm provision failed: %w", err)
 	}
 
+	failAfterCreate := func(err error) (ProvisionResult, error) {
+		destroyErr := c.DestroyVM(ctx, cfg.VMID)
+		_, _ = sess.CombinedOutput(ctx, "rm -f "+remote)
+		if destroyErr != nil {
+			return ProvisionResult{}, fmt.Errorf("vm provision failed and cleanup failed: %v: %w", err, destroyErr)
+		}
+		return ProvisionResult{}, fmt.Errorf("vm provision failed: %w", err)
+	}
+
 	importCmd := fmt.Sprintf("qm importdisk %d %s %s", cfg.VMID, remote, storage)
 	if _, err := sess.CombinedOutput(ctx, importCmd); err != nil {
-		return ProvisionResult{}, fmt.Errorf("vm provision failed: %w", err)
+		return failAfterCreate(err)
 	}
 
 	// Attach imported unused disk as scsi0.
@@ -75,17 +84,21 @@ func (c *Client) ProvisionVM(ctx context.Context, req ProvisionRequest) (Provisi
 	}
 	attachCmd := fmt.Sprintf("qm set %d --scsi0 %s", cfg.VMID, volumeRef)
 	if _, err := sess.CombinedOutput(ctx, attachCmd); err != nil {
-		return ProvisionResult{}, fmt.Errorf("vm provision failed: %w", err)
+		return failAfterCreate(err)
 	}
 
 	bootCmd := fmt.Sprintf("qm set %d --boot order=scsi0", cfg.VMID)
 	if _, err := sess.CombinedOutput(ctx, bootCmd); err != nil {
-		return ProvisionResult{}, fmt.Errorf("vm provision failed: %w", err)
+		return failAfterCreate(err)
 	}
 
 	agentCmd := fmt.Sprintf("qm set %d --agent 1", cfg.VMID)
 	if _, err := sess.CombinedOutput(ctx, agentCmd); err != nil {
-		return ProvisionResult{}, fmt.Errorf("vm provision failed: %w", err)
+		return failAfterCreate(err)
+	}
+
+	if _, err := sess.CombinedOutput(ctx, "rm -f "+remote); err != nil {
+		return failAfterCreate(err)
 	}
 
 	return ProvisionResult{VMID: cfg.VMID, Name: cfg.VMName}, nil
