@@ -44,6 +44,10 @@ func (c *Client) ProvisionVM(ctx context.Context, req ProvisionRequest) (Provisi
 	}
 	defer sess.Close()
 
+	if _, err := sess.CombinedOutput(ctx, fmt.Sprintf("qm status %d", cfg.VMID)); err == nil {
+		return ProvisionResult{}, fmt.Errorf("vm provision failed: vmid %d already exists", cfg.VMID)
+	}
+
 	createCmd := fmt.Sprintf(
 		"qm create %d --name %s --memory %d --cores %d --net0 virtio,bridge=%s --scsihw virtio-scsi-single --ostype l26 --agent 1",
 		cfg.VMID,

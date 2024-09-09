@@ -14,6 +14,7 @@ type fakeSSH struct {
 	commands  []string
 	responses map[string]string
 	errors    map[string]error
+	statusOK  bool // when true, qm status succeeds (VM exists)
 }
 
 func (f *fakeSSH) CombinedOutput(ctx context.Context, command string) ([]byte, error) {
@@ -23,6 +24,12 @@ func (f *fakeSSH) CombinedOutput(ctx context.Context, command string) ([]byte, e
 		if err, ok := f.errors[command]; ok {
 			return nil, err
 		}
+	}
+	if strings.HasPrefix(command, "qm status ") {
+		if f.statusOK {
+			return []byte("status: stopped\n"), nil
+		}
+		return nil, fmt.Errorf("Configuration file 'nodes/pve/qemu-server/%s.conf' does not exist", strings.TrimPrefix(command, "qm status "))
 	}
 	if f.responses != nil {
 		if out, ok := f.responses[command]; ok {
@@ -56,10 +63,16 @@ func TestProvisionQMCreateArgs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ProvisionVM: %v", err)
 	}
-	if len(fake.commands) == 0 {
-		t.Fatal("no SSH commands recorded")
+	var got string
+	for _, cmd := range fake.commands {
+		if strings.HasPrefix(cmd, "qm create ") {
+			got = cmd
+			break
+		}
 	}
-	got := fake.commands[0]
+	if got == "" {
+		t.Fatalf("no qm create in %#v", fake.commands)
+	}
 	wantParts := []string{
 		"qm create 200",
 		"--name alpine-docker",
@@ -206,5 +219,37 @@ func TestProvisionDestroysOnImportFailure(t *testing.T) {
 	}
 	if !sawRM {
 		t.Fatalf("missing staged rm in %#v", fake.commands)
+	}
+}
+
+func TestProvisionRejectsExistingVMID(t *testing.T) {
+	fake := &fakeSSH{statusOK: true}
+	client := &proxmox.Client{}
+	client.SetSSHOpenForTest(func(ctx context.Context) (proxmox.SSHSession, error) {
+		return fake, nil
+	})
+
+	_, err := client.ProvisionVM(context.Background(), proxmox.ProvisionRequest{
+		Config: config.Config{
+			VMID:      200,
+			VMName:    "alpine-docker",
+			MemoryMiB: 2048,
+			Cores:     2,
+			Bridge:    "vmbr0",
+			Storage:   "local-lvm",
+		},
+		RemoteDisk: "/var/tmp/proxima/200-disk.qcow2",
+	})
+	if err == nil {
+		t.Fatal("expected existing vmid error")
+	}
+	want := "vm provision failed: vmid 200 already exists"
+	if err.Error() != want {
+		t.Fatalf("error = %q, want %q", err.Error(), want)
+	}
+	for _, cmd := range fake.commands {
+		if strings.HasPrefix(cmd, "qm create ") {
+			t.Fatalf("must not create when vmid exists: %#v", fake.commands)
+		}
 	}
 }
