@@ -23,6 +23,9 @@ func DeriveSSHUser(identity string) string {
 
 // SSH opens an SSH session to the Proxmox host.
 func (c *Client) SSH(ctx context.Context) (SSHSession, error) {
+	if c.sshOpen != nil {
+		return c.sshOpen(ctx)
+	}
 	_ = ctx
 	hasToken := c.auth.TokenID != "" || c.auth.TokenSecret != ""
 	hasPasswordAuth := c.auth.User != "" || c.auth.Password != ""
@@ -30,4 +33,9 @@ func (c *Client) SSH(ctx context.Context) (SSHSession, error) {
 		return nil, fmt.Errorf("ssh credentials required: set ssh_private_key_path when using token authentication")
 	}
 	return nil, fmt.Errorf("ssh session not implemented")
+}
+
+// SetSSHOpenForTest replaces the SSH dialer (tests only).
+func (c *Client) SetSSHOpenForTest(fn func(ctx context.Context) (SSHSession, error)) {
+	c.sshOpen = fn
 }

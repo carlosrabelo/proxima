@@ -28,6 +28,7 @@ type Client struct {
 	sshUser           string
 	sshPrivateKeyPath string
 	sshPassword       string
+	sshOpen           func(ctx context.Context) (SSHSession, error) // test seam
 }
 
 type ticketResponse struct {
