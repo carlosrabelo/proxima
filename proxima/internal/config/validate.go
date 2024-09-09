@@ -66,5 +66,8 @@ func Validate(c Config) error {
 	if c.RootPassword == "" {
 		return errors.New("root_password is required")
 	}
+	if c.AgentWaitTimeout <= 0 {
+		return errors.New("agent_wait_timeout must be > 0")
+	}
 	return nil
 }

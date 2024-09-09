@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"proxima/proxima/internal/config"
 )
@@ -170,15 +171,35 @@ func TestApplyDefaultsPreservesSetValues(t *testing.T) {
 
 func validPasswordConfig() config.Config {
 	return config.Config{
-		ProxmoxHost:  "192.168.1.10",
-		Node:         "pve",
-		Auth:         config.Auth{User: "root@pam", Password: "secret"},
-		VMID:         200,
-		VMName:       "alpine-docker",
-		MemoryMiB:    2048,
-		Cores:        2,
-		DiskSize:     "8G",
-		RootPassword: "change-me",
+		ProxmoxHost:       "192.168.1.10",
+		Node:              "pve",
+		Auth:              config.Auth{User: "root@pam", Password: "secret"},
+		VMID:              200,
+		VMName:            "alpine-docker",
+		MemoryMiB:         2048,
+		Cores:             2,
+		DiskSize:          "8G",
+		RootPassword:      "change-me",
+		AgentWaitTimeout:  120 * time.Second,
+		AgentPollInterval: 2 * time.Second,
+	}
+}
+
+func TestValidateAgentWaitTimeout(t *testing.T) {
+	cfg := validPasswordConfig()
+	cfg.AgentWaitTimeout = 0
+	if err := config.Validate(cfg); err == nil || err.Error() != "agent_wait_timeout must be > 0" {
+		t.Fatalf("zero timeout: %v", err)
+	}
+
+	cfg.AgentWaitTimeout = -time.Second
+	if err := config.Validate(cfg); err == nil || err.Error() != "agent_wait_timeout must be > 0" {
+		t.Fatalf("negative timeout: %v", err)
+	}
+
+	cfg.AgentWaitTimeout = 30 * time.Second
+	if err := config.Validate(cfg); err != nil {
+		t.Fatalf("valid timeout: %v", err)
 	}
 }
 
