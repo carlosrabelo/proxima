@@ -145,13 +145,19 @@ func TestProvisionBootAndAgent(t *testing.T) {
 		t.Fatalf("ProvisionVM: %v", err)
 	}
 
-	sawBoot := false
+	sawBoot, sawAgent := false, false
 	for _, cmd := range fake.commands {
 		if cmd == "qm set 200 --boot order=scsi0" {
 			sawBoot = true
 		}
+		if cmd == "qm set 200 --agent 1" {
+			sawAgent = true
+		}
 	}
 	if !sawBoot {
 		t.Fatalf("missing boot order in %#v", fake.commands)
+	}
+	if !sawAgent {
+		t.Fatalf("missing agent enable in %#v", fake.commands)
 	}
 }

@@ -83,6 +83,11 @@ func (c *Client) ProvisionVM(ctx context.Context, req ProvisionRequest) (Provisi
 		return ProvisionResult{}, fmt.Errorf("vm provision failed: %w", err)
 	}
 
+	agentCmd := fmt.Sprintf("qm set %d --agent 1", cfg.VMID)
+	if _, err := sess.CombinedOutput(ctx, agentCmd); err != nil {
+		return ProvisionResult{}, fmt.Errorf("vm provision failed: %w", err)
+	}
+
 	return ProvisionResult{VMID: cfg.VMID, Name: cfg.VMName}, nil
 }
 
