@@ -39,6 +39,7 @@ func NewRootCommand() *cobra.Command {
 	root.AddCommand(newBuildCommand())
 	root.AddCommand(newProxmoxCommand())
 	root.AddCommand(newUploadCommand())
+	root.AddCommand(newProvisionCommand())
 
 	return root
 }
