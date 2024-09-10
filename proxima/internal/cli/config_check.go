@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -32,6 +33,8 @@ type configFlags struct {
 	insecureTLS       bool
 	sshUser           string
 	sshPrivateKeyPath string
+	agentTimeout      time.Duration
+	agentPollInterval time.Duration
 }
 
 func newConfigCheckCommand() *cobra.Command {
@@ -72,6 +75,8 @@ func bindConfigFlags(cmd *cobra.Command, f *configFlags) {
 	cmd.Flags().BoolVar(&f.insecureTLS, "insecure-tls", false, "skip TLS verify")
 	cmd.Flags().StringVar(&f.sshUser, "ssh-user", "", "SSH username")
 	cmd.Flags().StringVar(&f.sshPrivateKeyPath, "ssh-private-key", "", "SSH private key path")
+	cmd.Flags().DurationVar(&f.agentTimeout, "agent-timeout", 0, "guest agent wait timeout")
+	cmd.Flags().DurationVar(&f.agentPollInterval, "agent-poll-interval", 0, "guest agent poll interval")
 }
 
 func newConfigCommand() *cobra.Command {
@@ -169,6 +174,12 @@ func overrideFromFlags(cmd *cobra.Command, f *configFlags) config.Override {
 	}
 	if fs.Changed("ssh-private-key") {
 		o.SSHPrivateKeyPath = &f.sshPrivateKeyPath
+	}
+	if fs.Changed("agent-timeout") {
+		o.AgentWaitTimeout = &f.agentTimeout
+	}
+	if fs.Changed("agent-poll-interval") {
+		o.AgentPollInterval = &f.agentPollInterval
 	}
 	return o
 }

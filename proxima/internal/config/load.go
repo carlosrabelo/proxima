@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -33,6 +34,10 @@ type Override struct {
 	InsecureTLS       *bool
 	SSHUser           *string
 	SSHPrivateKeyPath *string
+	WaitIP            *bool
+	StartAfterCreate  *bool
+	AgentWaitTimeout  *time.Duration
+	AgentPollInterval *time.Duration
 }
 
 type fileConfig struct {
@@ -57,6 +62,10 @@ type fileConfig struct {
 	InsecureTLS       bool   `json:"insecure_tls" yaml:"insecure_tls"`
 	SSHUser           string `json:"ssh_user" yaml:"ssh_user"`
 	SSHPrivateKeyPath string `json:"ssh_private_key_path" yaml:"ssh_private_key_path"`
+	StartAfterCreate  *bool  `json:"start_after_create" yaml:"start_after_create"`
+	WaitIP            *bool  `json:"wait_ip" yaml:"wait_ip"`
+	AgentWaitTimeout  string `json:"agent_wait_timeout" yaml:"agent_wait_timeout"`
+	AgentPollInterval string `json:"agent_poll_interval" yaml:"agent_poll_interval"`
 }
 
 // Load reads a YAML or JSON config file, applies overrides and defaults.
@@ -93,7 +102,7 @@ func Load(path string, overrides Override) (Config, error) {
 }
 
 func configFromFile(fc fileConfig) Config {
-	return Config{
+	c := Config{
 		ProxmoxHost: fc.ProxmoxHost,
 		ProxmoxPort: fc.ProxmoxPort,
 		SSHPort:     fc.SSHPort,
@@ -118,6 +127,25 @@ func configFromFile(fc fileConfig) Config {
 		SSHUser:           fc.SSHUser,
 		SSHPrivateKeyPath: fc.SSHPrivateKeyPath,
 	}
+	if fc.StartAfterCreate != nil {
+		c.StartAfterCreate = *fc.StartAfterCreate
+		c.startAfterCreateSet = true
+	}
+	if fc.WaitIP != nil {
+		c.WaitIP = *fc.WaitIP
+		c.waitIPSet = true
+	}
+	if fc.AgentWaitTimeout != "" {
+		if d, err := time.ParseDuration(fc.AgentWaitTimeout); err == nil {
+			c.AgentWaitTimeout = d
+		}
+	}
+	if fc.AgentPollInterval != "" {
+		if d, err := time.ParseDuration(fc.AgentPollInterval); err == nil {
+			c.AgentPollInterval = d
+		}
+	}
+	return c
 }
 
 func applyEnv(c *Config) {
@@ -195,5 +223,19 @@ func applyOverride(c *Config, o Override) {
 	}
 	if o.SSHPrivateKeyPath != nil {
 		c.SSHPrivateKeyPath = *o.SSHPrivateKeyPath
+	}
+	if o.WaitIP != nil {
+		c.WaitIP = *o.WaitIP
+		c.waitIPSet = true
+	}
+	if o.StartAfterCreate != nil {
+		c.StartAfterCreate = *o.StartAfterCreate
+		c.startAfterCreateSet = true
+	}
+	if o.AgentWaitTimeout != nil {
+		c.AgentWaitTimeout = *o.AgentWaitTimeout
+	}
+	if o.AgentPollInterval != nil {
+		c.AgentPollInterval = *o.AgentPollInterval
 	}
 }
