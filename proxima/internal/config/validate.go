@@ -69,5 +69,11 @@ func Validate(c Config) error {
 	if c.AgentWaitTimeout <= 0 {
 		return errors.New("agent_wait_timeout must be > 0")
 	}
+	if c.AgentPollInterval <= 0 {
+		return errors.New("agent_poll_interval must be > 0")
+	}
+	if c.AgentPollInterval > c.AgentWaitTimeout {
+		return errors.New("agent_poll_interval must be <= agent_wait_timeout")
+	}
 	return nil
 }

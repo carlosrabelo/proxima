@@ -203,6 +203,30 @@ func TestValidateAgentWaitTimeout(t *testing.T) {
 	}
 }
 
+func TestValidateAgentPollInterval(t *testing.T) {
+	cfg := validPasswordConfig()
+	cfg.AgentPollInterval = 0
+	if err := config.Validate(cfg); err == nil || err.Error() != "agent_poll_interval must be > 0" {
+		t.Fatalf("zero poll: %v", err)
+	}
+
+	cfg.AgentPollInterval = -time.Second
+	if err := config.Validate(cfg); err == nil || err.Error() != "agent_poll_interval must be > 0" {
+		t.Fatalf("negative poll: %v", err)
+	}
+
+	cfg.AgentWaitTimeout = 10 * time.Second
+	cfg.AgentPollInterval = 11 * time.Second
+	if err := config.Validate(cfg); err == nil || err.Error() != "agent_poll_interval must be <= agent_wait_timeout" {
+		t.Fatalf("poll > timeout: %v", err)
+	}
+
+	cfg.AgentPollInterval = 2 * time.Second
+	if err := config.Validate(cfg); err != nil {
+		t.Fatalf("valid poll: %v", err)
+	}
+}
+
 func TestValidatePasswordAuth(t *testing.T) {
 	cfg := validPasswordConfig()
 	if err := config.Validate(cfg); err != nil {
