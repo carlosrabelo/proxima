@@ -25,16 +25,16 @@ func (f *fakeSSH) CombinedOutput(ctx context.Context, command string) ([]byte, e
 			return nil, err
 		}
 	}
+	if f.responses != nil {
+		if out, ok := f.responses[command]; ok {
+			return []byte(out), nil
+		}
+	}
 	if strings.HasPrefix(command, "qm status ") {
 		if f.statusOK {
 			return []byte("status: stopped\n"), nil
 		}
 		return nil, fmt.Errorf("Configuration file 'nodes/pve/qemu-server/%s.conf' does not exist", strings.TrimPrefix(command, "qm status "))
-	}
-	if f.responses != nil {
-		if out, ok := f.responses[command]; ok {
-			return []byte(out), nil
-		}
 	}
 	return nil, nil
 }
