@@ -1,10 +1,66 @@
 package proxmox
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net"
+	"net/url"
 	"strings"
+	"time"
 )
+
+// WaitGuestIPv4 polls the guest agent until a non-loopback IPv4 appears or timeout elapses.
+func (c *Client) WaitGuestIPv4(ctx context.Context, vmid int, timeout, interval time.Duration) (string, error) {
+	if interval <= 0 {
+		interval = 2 * time.Second
+	}
+	deadline := time.Now().Add(timeout)
+	for {
+		raw, err := c.fetchGuestNetwork(ctx, vmid)
+		if err == nil {
+			if ip, ok := PickFirstNonLoopbackIPv4(raw); ok {
+				return ip, nil
+			}
+		}
+		if time.Now().After(deadline) || time.Now().Equal(deadline) {
+			return "", fmt.Errorf("guest ip wait timed out after %s", timeout)
+		}
+		remaining := time.Until(deadline)
+		sleep := interval
+		if sleep > remaining {
+			sleep = remaining
+		}
+		timer := time.NewTimer(sleep)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return "", ctx.Err()
+		case <-timer.C:
+		}
+		if time.Now().After(deadline) {
+			return "", fmt.Errorf("guest ip wait timed out after %s", timeout)
+		}
+	}
+}
+
+func (c *Client) fetchGuestNetwork(ctx context.Context, vmid int) ([]byte, error) {
+	path := fmt.Sprintf("/nodes/%s/qemu/%d/agent/network-get-interfaces", url.PathEscape(c.node), vmid)
+	body, err := c.get(ctx, path)
+	if err == nil {
+		return body, nil
+	}
+	sess, sshErr := c.SSH(ctx)
+	if sshErr != nil {
+		return nil, err
+	}
+	defer sess.Close()
+	out, sshErr := sess.CombinedOutput(ctx, fmt.Sprintf("qm guest cmd %d network-get-interfaces", vmid))
+	if sshErr != nil {
+		return nil, err
+	}
+	return out, nil
+}
 
 // agentInterfacePayload is a subset of QEMU guest agent network-get-interfaces.
 type agentInterfacePayload struct {
@@ -26,31 +82,9 @@ type agentIPAddr struct {
 // PickFirstNonLoopbackIPv4 returns the first non-loopback IPv4 from guest-agent JSON.
 // Prefers interfaces whose name is not "lo".
 func PickFirstNonLoopbackIPv4(raw []byte) (string, bool) {
-	var payload agentInterfacePayload
-	if err := json.Unmarshal(raw, &payload); err != nil {
-		// Some Proxmox responses wrap under "data" / "result" differently;
-		// also accept a bare result array via data envelope used by API.
-		var wrapped struct {
-			Data json.RawMessage `json:"data"`
-		}
-		if err2 := json.Unmarshal(raw, &wrapped); err2 != nil {
-			return "", false
-		}
-		if err3 := json.Unmarshal(wrapped.Data, &payload); err3 != nil {
-			var onlyResult agentInterfacePayload
-			if err4 := json.Unmarshal(wrapped.Data, &onlyResult); err4 != nil {
-				// data may itself be {"result":[...]}
-				var inner struct {
-					Result []agentIface `json:"result"`
-				}
-				if err5 := json.Unmarshal(wrapped.Data, &inner); err5 != nil {
-					return "", false
-				}
-				payload.Result = inner.Result
-			} else {
-				payload = onlyResult
-			}
-		}
+	payload, ok := parseAgentInterfaces(raw)
+	if !ok {
+		return "", false
 	}
 
 	var fallback string
@@ -71,6 +105,23 @@ func PickFirstNonLoopbackIPv4(raw []byte) (string, bool) {
 		return fallback, true
 	}
 	return "", false
+}
+
+func parseAgentInterfaces(raw []byte) (agentInterfacePayload, bool) {
+	var payload agentInterfacePayload
+	if err := json.Unmarshal(raw, &payload); err == nil && len(payload.Result) > 0 {
+		return payload, true
+	}
+	var wrapped struct {
+		Data json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(raw, &wrapped); err != nil || len(wrapped.Data) == 0 {
+		return agentInterfacePayload{}, len(payload.Result) > 0
+	}
+	if err := json.Unmarshal(wrapped.Data, &payload); err == nil && len(payload.Result) > 0 {
+		return payload, true
+	}
+	return agentInterfacePayload{}, false
 }
 
 func firstIPv4(iface agentIface) string {
