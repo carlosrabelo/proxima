@@ -41,6 +41,7 @@ func NewRootCommand() *cobra.Command {
 	root.AddCommand(newUploadCommand())
 	root.AddCommand(newProvisionCommand())
 	root.AddCommand(newStartCommand())
+	root.AddCommand(newIPCommand())
 
 	return root
 }
