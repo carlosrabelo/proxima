@@ -140,3 +140,31 @@ func TestCreateStopsOnUploadFailure(t *testing.T) {
 		t.Fatal("provision must not run after upload failure")
 	}
 }
+
+func TestCreateStopsOnProvisionFailure(t *testing.T) {
+	calledStart := false
+	r := &pipeline.Runner{
+		Reporter:  &ui.TextReporter{Out: &bytes.Buffer{}},
+		KeepQcow2: true,
+		Build: func(ctx context.Context, cfg config.Config) (diskbuild.Result, error) {
+			return diskbuild.Result{Qcow2Path: "alpine-ready.qcow2", Bytes: 1}, nil
+		},
+		Upload: func(ctx context.Context, cfg config.Config, local string) (upload.Result, error) {
+			return upload.Result{RemotePath: "/var/tmp/proxima/200-disk.qcow2", Bytes: 1}, nil
+		},
+		Provision: func(ctx context.Context, cfg config.Config, remote string) (proxmox.ProvisionResult, error) {
+			return proxmox.ProvisionResult{}, errors.New("vm provision failed: boom")
+		},
+		Start: func(ctx context.Context, cfg config.Config, vmid int) error {
+			calledStart = true
+			return nil
+		},
+	}
+	_, err := r.Create(context.Background(), validCfg())
+	if err == nil {
+		t.Fatal("expected provision failure")
+	}
+	if calledStart {
+		t.Fatal("start must not run after provision failure")
+	}
+}
