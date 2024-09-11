@@ -202,3 +202,38 @@ func TestCreateSkipsStartWhenDisabled(t *testing.T) {
 		t.Fatalf("IP = %q, want empty", res.IP)
 	}
 }
+
+func TestCreateWaitIPRequiresStart(t *testing.T) {
+	cfg := validCfg()
+	cfg.StartAfterCreate = false
+	cfg.WaitIP = true
+	calledWait := false
+	r := &pipeline.Runner{
+		Reporter:  &ui.TextReporter{Out: &bytes.Buffer{}},
+		KeepQcow2: true,
+		Build: func(ctx context.Context, cfg config.Config) (diskbuild.Result, error) {
+			return diskbuild.Result{Qcow2Path: "alpine-ready.qcow2", Bytes: 1}, nil
+		},
+		Upload: func(ctx context.Context, cfg config.Config, local string) (upload.Result, error) {
+			return upload.Result{RemotePath: "/r.qcow2", Bytes: 1}, nil
+		},
+		Provision: func(ctx context.Context, cfg config.Config, remote string) (proxmox.ProvisionResult, error) {
+			return proxmox.ProvisionResult{VMID: 200, Name: "alpine-docker"}, nil
+		},
+		WaitIP: func(ctx context.Context, cfg config.Config, vmid int) (string, error) {
+			calledWait = true
+			return "10.0.0.1", nil
+		},
+	}
+	_, err := r.Create(context.Background(), cfg)
+	if err == nil {
+		t.Fatal("expected wait_ip requires start error")
+	}
+	want := "wait_ip requires a running vm: enable --start or start the vm first"
+	if err.Error() != want {
+		t.Fatalf("error = %q, want %q", err.Error(), want)
+	}
+	if calledWait {
+		t.Fatal("WaitIP agent must not be called")
+	}
+}
