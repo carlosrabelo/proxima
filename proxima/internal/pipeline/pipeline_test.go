@@ -168,3 +168,37 @@ func TestCreateStopsOnProvisionFailure(t *testing.T) {
 		t.Fatal("start must not run after provision failure")
 	}
 }
+
+func TestCreateSkipsStartWhenDisabled(t *testing.T) {
+	calledStart := false
+	cfg := validCfg()
+	cfg.StartAfterCreate = false
+	cfg.WaitIP = false
+	r := &pipeline.Runner{
+		Reporter:  &ui.TextReporter{Out: &bytes.Buffer{}},
+		KeepQcow2: true,
+		Build: func(ctx context.Context, cfg config.Config) (diskbuild.Result, error) {
+			return diskbuild.Result{Qcow2Path: "alpine-ready.qcow2", Bytes: 1}, nil
+		},
+		Upload: func(ctx context.Context, cfg config.Config, local string) (upload.Result, error) {
+			return upload.Result{RemotePath: "/r.qcow2", Bytes: 1}, nil
+		},
+		Provision: func(ctx context.Context, cfg config.Config, remote string) (proxmox.ProvisionResult, error) {
+			return proxmox.ProvisionResult{VMID: 200, Name: "alpine-docker"}, nil
+		},
+		Start: func(ctx context.Context, cfg config.Config, vmid int) error {
+			calledStart = true
+			return nil
+		},
+	}
+	res, err := r.Create(context.Background(), cfg)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if calledStart {
+		t.Fatal("start must be skipped")
+	}
+	if res.IP != "" {
+		t.Fatalf("IP = %q, want empty", res.IP)
+	}
+}
