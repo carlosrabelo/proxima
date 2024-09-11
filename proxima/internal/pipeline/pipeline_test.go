@@ -115,3 +115,28 @@ func TestCreateStopsOnBuildFailure(t *testing.T) {
 		t.Fatal("upload must not run after build failure")
 	}
 }
+
+func TestCreateStopsOnUploadFailure(t *testing.T) {
+	calledProvision := false
+	r := &pipeline.Runner{
+		Reporter:  &ui.TextReporter{Out: &bytes.Buffer{}},
+		KeepQcow2: true,
+		Build: func(ctx context.Context, cfg config.Config) (diskbuild.Result, error) {
+			return diskbuild.Result{Qcow2Path: "alpine-ready.qcow2", Bytes: 1}, nil
+		},
+		Upload: func(ctx context.Context, cfg config.Config, local string) (upload.Result, error) {
+			return upload.Result{}, errors.New("disk upload failed: boom")
+		},
+		Provision: func(ctx context.Context, cfg config.Config, remote string) (proxmox.ProvisionResult, error) {
+			calledProvision = true
+			return proxmox.ProvisionResult{}, nil
+		},
+	}
+	_, err := r.Create(context.Background(), validCfg())
+	if err == nil {
+		t.Fatal("expected upload failure")
+	}
+	if calledProvision {
+		t.Fatal("provision must not run after upload failure")
+	}
+}
