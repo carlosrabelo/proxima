@@ -3,6 +3,7 @@ package pipeline_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -90,5 +91,27 @@ func TestCreateHappyPathStageOrder(t *testing.T) {
 		if !strings.Contains(out, line) {
 			t.Fatalf("missing %q in %q", line, out)
 		}
+	}
+}
+
+func TestCreateStopsOnBuildFailure(t *testing.T) {
+	calledUpload := false
+	r := &pipeline.Runner{
+		Reporter:  &ui.TextReporter{Out: &bytes.Buffer{}},
+		KeepQcow2: true,
+		Build: func(ctx context.Context, cfg config.Config) (diskbuild.Result, error) {
+			return diskbuild.Result{}, errors.New("local disk build failed: boom")
+		},
+		Upload: func(ctx context.Context, cfg config.Config, local string) (upload.Result, error) {
+			calledUpload = true
+			return upload.Result{}, nil
+		},
+	}
+	_, err := r.Create(context.Background(), validCfg())
+	if err == nil {
+		t.Fatal("expected build failure")
+	}
+	if calledUpload {
+		t.Fatal("upload must not run after build failure")
 	}
 }
