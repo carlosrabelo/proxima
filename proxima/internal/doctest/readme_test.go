@@ -45,3 +45,29 @@ func TestREADMEMentionsStartAndIP(t *testing.T) {
 		}
 	}
 }
+
+func TestREADMEPTMentionsCreate(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join(repoRoot(t), "README-PT.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	for _, want := range []string{"proxima create", "BuildLocal", "cfg/proxima.example.yaml"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("README-PT.md missing %q", want)
+		}
+	}
+}
+
+func TestREADMEPTMentionsStartAndIP(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join(repoRoot(t), "README-PT.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	for _, want := range []string{"proxima start", "proxima ip", "WaitIP"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("README-PT.md missing %q", want)
+		}
+	}
+}
