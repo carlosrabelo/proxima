@@ -36,8 +36,9 @@ func newCreateCommand() *cobra.Command {
 }
 
 func runCreate(cmd *cobra.Command, f *configFlags, startAfter, waitIP, keepQcow2 bool) error {
-	if f.configPath == "" {
-		return fmt.Errorf("config file must end in .yaml, .yml, or .json")
+	path, err := resolveConfigPath(f.configPath)
+	if err != nil {
+		return err
 	}
 
 	o := overrideFromFlags(cmd, f)
@@ -47,7 +48,7 @@ func runCreate(cmd *cobra.Command, f *configFlags, startAfter, waitIP, keepQcow2
 	if cmd.Flags().Changed("wait-ip") {
 		o.WaitIP = &waitIP
 	}
-	cfg, err := config.Load(f.configPath, o)
+	cfg, err := config.Load(path, o)
 	if err != nil {
 		return err
 	}

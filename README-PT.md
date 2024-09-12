@@ -28,7 +28,9 @@ Binário: `bin/proxima`.
 
 ## Configuração
 
-Copie e edite [`cfg/proxima.example.yaml`](cfg/proxima.example.yaml).
+Copie [`docs/proxima.example.yaml`](docs/proxima.example.yaml) para `vms/Proxima.yaml` (só local; `vms/` fica no git só com `.gitkeep`). Esse manifesto é lido automaticamente quando `-c` é omitido. Detalhes: [`docs/configuration.md`](docs/configuration.md).
+
+Ordem sem `-c`: `./Proxima.yaml`, depois `./vms/Proxima.yaml`. Use `-c path` só para sobrescrever. Coloque o disco gerado em `vms/` (por exemplo `output: "vms/alpine-ready.qcow2"`).
 
 Autenticação (exatamente um modo):
 
@@ -39,10 +41,10 @@ Senha root do convidado: `root_password` ou env `PROXIMA_ROOT_PASSWORD`.
 
 Flags de create / start: `--start` / `--wait-ip` (padrão true), `--agent-timeout` (padrão `120s`), `--agent-poll-interval` (padrão `2s`).
 
-Validar:
+Validar (na raiz do repositório):
 
 ```bash
-proxima config check -c cfg/proxima.example.yaml
+proxima config check
 ```
 
 ## Uso
@@ -50,25 +52,25 @@ proxima config check -c cfg/proxima.example.yaml
 Somente build local do qcow2:
 
 ```bash
-proxima build -c cfg/proxima.example.yaml
+proxima build
 ```
 
 Pipeline completo (Validate → BuildLocal → Upload → Provision → Start → WaitIP por padrão):
 
 ```bash
-proxima create -c cfg/proxima.example.yaml
+proxima create
 ```
 
 Iniciar uma VM já provisionada e imprimir o IPv4 do convidado:
 
 ```bash
-proxima start -c cfg/proxima.example.yaml
+proxima start
 ```
 
 Aguardar / imprimir o IPv4 do convidado sem iniciar (útil para repetir só o `WaitIP`):
 
 ```bash
-proxima ip -c cfg/proxima.example.yaml
+proxima ip
 ```
 
 ## Estágios do pipeline

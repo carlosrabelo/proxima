@@ -45,11 +45,12 @@ func newProvisionCommand() *cobra.Command {
 }
 
 func runProvision(cmd *cobra.Command, f *configFlags, remoteDisk string) error {
-	if f.configPath == "" {
-		return fmt.Errorf("config file must end in .yaml, .yml, or .json")
+	path, err := resolveConfigPath(f.configPath)
+	if err != nil {
+		return err
 	}
 
-	cfg, err := config.Load(f.configPath, overrideFromFlags(cmd, f))
+	cfg, err := config.Load(path, overrideFromFlags(cmd, f))
 	if err != nil {
 		return err
 	}

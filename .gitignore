@@ -21,6 +21,11 @@ credentials.json
 bin/*
 !bin/.gitkeep
 
+# Local VM manifests and disk images (keep directory via .gitkeep only)
+vms/*
+!vms/.gitkeep
+*.qcow2
+
 # Files
 /proxima
 !/proxima/

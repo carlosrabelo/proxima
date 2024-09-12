@@ -26,7 +26,7 @@ func TestREADMEMentionsCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(data)
-	for _, want := range []string{"proxima create", "BuildLocal", "cfg/proxima.example.yaml"} {
+	for _, want := range []string{"proxima create", "BuildLocal", "docs/proxima.example.yaml"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("README.md missing %q", want)
 		}
@@ -52,7 +52,7 @@ func TestREADMEPTMentionsCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(data)
-	for _, want := range []string{"proxima create", "BuildLocal", "cfg/proxima.example.yaml"} {
+	for _, want := range []string{"proxima create", "BuildLocal", "docs/proxima.example.yaml"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("README-PT.md missing %q", want)
 		}

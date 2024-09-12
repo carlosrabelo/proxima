@@ -44,15 +44,16 @@ func newStartCommand() *cobra.Command {
 }
 
 func runStart(cmd *cobra.Command, f *configFlags, waitIP bool) error {
-	if f.configPath == "" {
-		return fmt.Errorf("config file must end in .yaml, .yml, or .json")
+	path, err := resolveConfigPath(f.configPath)
+	if err != nil {
+		return err
 	}
 
 	o := overrideFromFlags(cmd, f)
 	if cmd.Flags().Changed("wait-ip") {
 		o.WaitIP = &waitIP
 	}
-	cfg, err := config.Load(f.configPath, o)
+	cfg, err := config.Load(path, o)
 	if err != nil {
 		return err
 	}

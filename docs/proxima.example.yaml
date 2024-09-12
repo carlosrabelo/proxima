@@ -21,7 +21,7 @@ disk_size: "8G"
 root_password: "change-me"
 storage: "local-lvm"
 bridge: "vmbr0"
-output: "alpine-ready.qcow2"
+output: "vms/alpine-ready.qcow2"
 work_dir: ".proxima-work"
 insecure_tls: false
 # Optional SSH overrides (token auth requires ssh_private_key_path):

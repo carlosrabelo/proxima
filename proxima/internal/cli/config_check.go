@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -53,7 +52,7 @@ func newConfigCheckCommand() *cobra.Command {
 }
 
 func bindConfigFlags(cmd *cobra.Command, f *configFlags) {
-	cmd.Flags().StringVarP(&f.configPath, "config", "c", "", "config file path (.yaml, .yml, or .json)")
+	cmd.Flags().StringVarP(&f.configPath, "config", "c", "", "config file path (default: Proxima.yaml or vms/Proxima.yaml)")
 	cmd.Flags().StringVar(&f.proxmoxHost, "proxmox-host", "", "Proxmox host")
 	cmd.Flags().IntVar(&f.proxmoxPort, "proxmox-port", 0, "Proxmox API port")
 	cmd.Flags().IntVar(&f.sshPort, "ssh-port", 0, "SSH port")
@@ -89,11 +88,12 @@ func newConfigCommand() *cobra.Command {
 }
 
 func runConfigCheck(cmd *cobra.Command, f *configFlags) error {
-	if f.configPath == "" {
-		return fmt.Errorf("config file must end in .yaml, .yml, or .json")
+	path, err := resolveConfigPath(f.configPath)
+	if err != nil {
+		return err
 	}
 
-	cfg, err := config.Load(f.configPath, overrideFromFlags(cmd, f))
+	cfg, err := config.Load(path, overrideFromFlags(cmd, f))
 	if err != nil {
 		return err
 	}
