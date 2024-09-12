@@ -6,6 +6,7 @@ Proxima is a Go CLI that builds an Alpine Linux Docker-ready qcow2 image locally
 
 - Local Alpine qcow2 build via Docker and `alpine-make-vm-image`
 - Proxmox provision through SSH `qm` (create, importdisk, attach, boot, agent)
+- Start the VM and resolve guest IPv4 via the QEMU Guest Agent (`WaitIP`)
 - Config file plus CLI flags for hosts, auth, VM sizing, and storage
 - Stage status lines and cleanup of partial artifacts on failure
 
@@ -15,6 +16,7 @@ Proxima is a Go CLI that builds an Alpine Linux Docker-ready qcow2 image locally
 - Docker (host CLI)
 - SSH reachability to the Proxmox node
 - Proxmox VE with `qm`, storage id (default `local-lvm`), and bridge (default `vmbr0`)
+- DHCP (or other IP assignment) on the guest bridge so `WaitIP` can observe an address
 
 ## Installation
 
@@ -35,6 +37,8 @@ Authentication (exactly one mode):
 
 Guest root password: `root_password` or env `PROXIMA_ROOT_PASSWORD`.
 
+Create / start flags: `--start` / `--wait-ip` (defaults true), `--agent-timeout` (default `120s`), `--agent-poll-interval` (default `2s`).
+
 Validate:
 
 ```bash
@@ -53,6 +57,18 @@ Full pipeline (Validate → BuildLocal → Upload → Provision → Start → Wa
 
 ```bash
 proxima create -c cfg/proxima.example.yaml
+```
+
+Start an already-provisioned VM and print guest IPv4:
+
+```bash
+proxima start -c cfg/proxima.example.yaml
+```
+
+Wait for / print guest IPv4 without starting:
+
+```bash
+proxima ip -c cfg/proxima.example.yaml
 ```
 
 ## Pipeline stages
