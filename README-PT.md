@@ -65,7 +65,7 @@ Iniciar uma VM já provisionada e imprimir o IPv4 do convidado:
 proxima start -c cfg/proxima.example.yaml
 ```
 
-Aguardar / imprimir o IPv4 do convidado sem iniciar:
+Aguardar / imprimir o IPv4 do convidado sem iniciar (útil para repetir só o `WaitIP`):
 
 ```bash
 proxima ip -c cfg/proxima.example.yaml
