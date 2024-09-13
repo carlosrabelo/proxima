@@ -103,6 +103,9 @@ func (u *Uploader) open(ctx context.Context) (Session, error) {
 	if err != nil {
 		return nil, err
 	}
+	if up, ok := sess.(proxmox.SSHUploader); ok {
+		return up, nil
+	}
 	return &cmdOnlySession{sess: sess}, nil
 }
 

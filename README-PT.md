@@ -22,9 +22,11 @@ Proxima é uma CLI em Go que constrói localmente uma imagem qcow2 Alpine Linux 
 
 ```bash
 make build
+make install         # ~/.local/bin/proxima
+make package         # .deb em dist/ (binário em /usr/bin)
 ```
 
-Binário: `bin/proxima`.
+Binário após o build: `bin/proxima`.
 
 ## Configuração
 
@@ -94,13 +96,17 @@ proxima ip
 | 3 | Falha de transporte ou API Proxmox |
 | 4 | Falha na limpeza após provisionamento parcial |
 
-## Development
+## Desenvolvimento
 
 ```bash
+make build
 make test
 make quality
+make install         # Instala o binário em ~/.local/bin
+make uninstall       # Remove de ~/.local/bin
+make package         # Gera .deb em dist/ (binário em /usr/bin)
 ```
 
 ## Licença
 
-License: TBD
+GPL-3.0 — ver [LICENSE](LICENSE).

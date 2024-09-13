@@ -22,9 +22,11 @@ Proxima is a Go CLI that builds an Alpine Linux Docker-ready qcow2 image locally
 
 ```bash
 make build
+make install         # ~/.local/bin/proxima
+make package         # .deb into dist/ (binary at /usr/bin)
 ```
 
-Binary: `bin/proxima`.
+Binary after build: `bin/proxima`.
 
 ## Configuration
 
@@ -97,10 +99,14 @@ proxima ip
 ## Development
 
 ```bash
+make build
 make test
 make quality
+make install         # Install binary to ~/.local/bin
+make uninstall       # Remove from ~/.local/bin
+make package         # Build .deb into dist/ (binary at /usr/bin)
 ```
 
 ## License
 
-License: TBD
+GPL-3.0 — see [LICENSE](LICENSE).

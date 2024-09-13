@@ -20,6 +20,8 @@ credentials.json
 # Directories
 bin/*
 !bin/.gitkeep
+dist/
+.proxima-work/
 
 # Local VM manifests and disk images (keep directory via .gitkeep only)
 vms/*
