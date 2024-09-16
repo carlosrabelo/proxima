@@ -10,30 +10,31 @@ import (
 )
 
 type configFlags struct {
-	configPath        string
-	proxmoxHost       string
-	proxmoxPort       int
-	sshPort           int
-	node              string
-	user              string
-	password          string
-	tokenID           string
-	tokenSecret       string
-	vmid              int
-	name              string
-	memory            int
-	cores             int
-	diskSize          string
-	rootPassword      string
-	storage           string
-	bridge            string
-	output            string
-	workDir           string
-	insecureTLS       bool
-	sshUser           string
-	sshPrivateKeyPath string
-	agentTimeout      time.Duration
-	agentPollInterval time.Duration
+	configPath            string
+	proxmoxHost           string
+	proxmoxPort           int
+	sshPort               int
+	node                  string
+	user                  string
+	password              string
+	tokenID               string
+	tokenSecret           string
+	vmid                  int
+	name                  string
+	memory                int
+	cores                 int
+	diskSize              string
+	rootPassword          string
+	guestSSHPublicKeyPath string
+	storage               string
+	bridge                string
+	output                string
+	workDir               string
+	insecureTLS           bool
+	sshUser               string
+	sshPrivateKeyPath     string
+	agentTimeout          time.Duration
+	agentPollInterval     time.Duration
 }
 
 func newConfigCheckCommand() *cobra.Command {
@@ -67,6 +68,7 @@ func bindConfigFlags(cmd *cobra.Command, f *configFlags) {
 	cmd.Flags().IntVar(&f.cores, "cores", 0, "CPU cores")
 	cmd.Flags().StringVar(&f.diskSize, "disk-size", "", "disk size")
 	cmd.Flags().StringVar(&f.rootPassword, "root-password", "", "guest root password")
+	cmd.Flags().StringVar(&f.guestSSHPublicKeyPath, "guest-ssh-public-key", "", "path to OpenSSH public key for guest root")
 	cmd.Flags().StringVar(&f.storage, "storage", "", "Proxmox storage")
 	cmd.Flags().StringVar(&f.bridge, "bridge", "", "network bridge")
 	cmd.Flags().StringVar(&f.output, "output", "", "local qcow2 output path")
@@ -154,6 +156,9 @@ func overrideFromFlags(cmd *cobra.Command, f *configFlags) config.Override {
 	if fs.Changed("root-password") {
 		o.RootPassword = &f.rootPassword
 	}
+	if fs.Changed("guest-ssh-public-key") {
+		o.GuestSSHPublicKeyPath = &f.guestSSHPublicKeyPath
+	}
 	if fs.Changed("storage") {
 		o.Storage = &f.storage
 	}
@@ -185,51 +190,53 @@ func overrideFromFlags(cmd *cobra.Command, f *configFlags) config.Override {
 }
 
 type redactedView struct {
-	ProxmoxHost       string `yaml:"proxmox_host"`
-	ProxmoxPort       int    `yaml:"proxmox_port"`
-	SSHPort           int    `yaml:"ssh_port"`
-	Node              string `yaml:"node"`
-	User              string `yaml:"user,omitempty"`
-	Password          string `yaml:"password,omitempty"`
-	TokenID           string `yaml:"token_id,omitempty"`
-	TokenSecret       string `yaml:"token_secret,omitempty"`
-	VMID              int    `yaml:"vmid"`
-	Name              string `yaml:"name"`
-	Memory            int    `yaml:"memory"`
-	Cores             int    `yaml:"cores"`
-	DiskSize          string `yaml:"disk_size"`
-	RootPassword      string `yaml:"root_password"`
-	Storage           string `yaml:"storage"`
-	Bridge            string `yaml:"bridge"`
-	Output            string `yaml:"output"`
-	WorkDir           string `yaml:"work_dir"`
-	InsecureTLS       bool   `yaml:"insecure_tls"`
-	SSHUser           string `yaml:"ssh_user,omitempty"`
-	SSHPrivateKeyPath string `yaml:"ssh_private_key_path,omitempty"`
+	ProxmoxHost           string `yaml:"proxmox_host"`
+	ProxmoxPort           int    `yaml:"proxmox_port"`
+	SSHPort               int    `yaml:"ssh_port"`
+	Node                  string `yaml:"node"`
+	User                  string `yaml:"user,omitempty"`
+	Password              string `yaml:"password,omitempty"`
+	TokenID               string `yaml:"token_id,omitempty"`
+	TokenSecret           string `yaml:"token_secret,omitempty"`
+	VMID                  int    `yaml:"vmid"`
+	Name                  string `yaml:"name"`
+	Memory                int    `yaml:"memory"`
+	Cores                 int    `yaml:"cores"`
+	DiskSize              string `yaml:"disk_size"`
+	RootPassword          string `yaml:"root_password"`
+	GuestSSHPublicKeyPath string `yaml:"guest_ssh_public_key_path,omitempty"`
+	Storage               string `yaml:"storage"`
+	Bridge                string `yaml:"bridge"`
+	Output                string `yaml:"output"`
+	WorkDir               string `yaml:"work_dir"`
+	InsecureTLS           bool   `yaml:"insecure_tls"`
+	SSHUser               string `yaml:"ssh_user,omitempty"`
+	SSHPrivateKeyPath     string `yaml:"ssh_private_key_path,omitempty"`
 }
 
 func redactedYAML(c config.Config) redactedView {
 	return redactedView{
-		ProxmoxHost:       c.ProxmoxHost,
-		ProxmoxPort:       c.ProxmoxPort,
-		SSHPort:           c.SSHPort,
-		Node:              c.Node,
-		User:              c.Auth.User,
-		Password:          c.Auth.Password,
-		TokenID:           c.Auth.TokenID,
-		TokenSecret:       c.Auth.TokenSecret,
-		VMID:              c.VMID,
-		Name:              c.VMName,
-		Memory:            c.MemoryMiB,
-		Cores:             c.Cores,
-		DiskSize:          c.DiskSize,
-		RootPassword:      c.RootPassword,
-		Storage:           c.Storage,
-		Bridge:            c.Bridge,
-		Output:            c.OutputQcow2,
-		WorkDir:           c.WorkDir,
-		InsecureTLS:       c.InsecureTLS,
-		SSHUser:           c.SSHUser,
-		SSHPrivateKeyPath: c.SSHPrivateKeyPath,
+		ProxmoxHost:           c.ProxmoxHost,
+		ProxmoxPort:           c.ProxmoxPort,
+		SSHPort:               c.SSHPort,
+		Node:                  c.Node,
+		User:                  c.Auth.User,
+		Password:              c.Auth.Password,
+		TokenID:               c.Auth.TokenID,
+		TokenSecret:           c.Auth.TokenSecret,
+		VMID:                  c.VMID,
+		Name:                  c.VMName,
+		Memory:                c.MemoryMiB,
+		Cores:                 c.Cores,
+		DiskSize:              c.DiskSize,
+		RootPassword:          c.RootPassword,
+		GuestSSHPublicKeyPath: c.GuestSSHPublicKeyPath,
+		Storage:               c.Storage,
+		Bridge:                c.Bridge,
+		Output:                c.OutputQcow2,
+		WorkDir:               c.WorkDir,
+		InsecureTLS:           c.InsecureTLS,
+		SSHUser:               c.SSHUser,
+		SSHPrivateKeyPath:     c.SSHPrivateKeyPath,
 	}
 }

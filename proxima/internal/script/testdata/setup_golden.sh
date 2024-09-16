@@ -8,7 +8,19 @@ printf '%s\n' \
   > /etc/apk/repositories
 
 apk update
-apk add --no-cache docker docker-compose qemu-guest-agent openssh
+i=0
+while [ "$i" -lt 3 ]; do
+  if apk add --no-cache docker docker-compose qemu-guest-agent openssh; then
+    break
+  fi
+  i=$((i + 1))
+  if [ "$i" -ge 3 ]; then
+    exit 1
+  fi
+  rm -rf /var/cache/apk/*
+  apk update
+  sleep 2
+done
 
 rc-update add docker default
 rc-update add qemu-guest-agent default

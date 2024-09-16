@@ -68,7 +68,15 @@ func (b *Builder) Build(ctx context.Context, cfg config.Config) (Result, error) 
 		return fail("local disk build failed: %w", err)
 	}
 
-	if err := script.WriteFile(setupPath, script.Params{RootPassword: cfg.RootPassword}); err != nil {
+	params := script.Params{RootPassword: cfg.RootPassword}
+	if cfg.GuestSSHPublicKeyPath != "" {
+		key, err := script.ReadPublicKeyFile(cfg.GuestSSHPublicKeyPath)
+		if err != nil {
+			return fail("local disk build failed: %w", err)
+		}
+		params.SSHAuthorizedKey = key
+	}
+	if err := script.WriteFile(setupPath, params); err != nil {
 		return fail("local disk build failed: %w", err)
 	}
 

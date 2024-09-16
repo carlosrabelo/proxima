@@ -13,59 +13,61 @@ import (
 
 // Override carries optional CLI/env values that win over file contents.
 type Override struct {
-	ProxmoxHost       *string
-	ProxmoxPort       *int
-	SSHPort           *int
-	Node              *string
-	User              *string
-	Password          *string
-	TokenID           *string
-	TokenSecret       *string
-	VMID              *int
-	VMName            *string
-	MemoryMiB         *int
-	Cores             *int
-	DiskSize          *string
-	RootPassword      *string
-	Storage           *string
-	Bridge            *string
-	OutputQcow2       *string
-	WorkDir           *string
-	InsecureTLS       *bool
-	SSHUser           *string
-	SSHPrivateKeyPath *string
-	WaitIP            *bool
-	StartAfterCreate  *bool
-	AgentWaitTimeout  *time.Duration
-	AgentPollInterval *time.Duration
+	ProxmoxHost           *string
+	ProxmoxPort           *int
+	SSHPort               *int
+	Node                  *string
+	User                  *string
+	Password              *string
+	TokenID               *string
+	TokenSecret           *string
+	VMID                  *int
+	VMName                *string
+	MemoryMiB             *int
+	Cores                 *int
+	DiskSize              *string
+	RootPassword          *string
+	GuestSSHPublicKeyPath *string
+	Storage               *string
+	Bridge                *string
+	OutputQcow2           *string
+	WorkDir               *string
+	InsecureTLS           *bool
+	SSHUser               *string
+	SSHPrivateKeyPath     *string
+	WaitIP                *bool
+	StartAfterCreate      *bool
+	AgentWaitTimeout      *time.Duration
+	AgentPollInterval     *time.Duration
 }
 
 type fileConfig struct {
-	ProxmoxHost       string `json:"proxmox_host" yaml:"proxmox_host"`
-	ProxmoxPort       int    `json:"proxmox_port" yaml:"proxmox_port"`
-	SSHPort           int    `json:"ssh_port" yaml:"ssh_port"`
-	Node              string `json:"node" yaml:"node"`
-	User              string `json:"user" yaml:"user"`
-	Password          string `json:"password" yaml:"password"`
-	TokenID           string `json:"token_id" yaml:"token_id"`
-	TokenSecret       string `json:"token_secret" yaml:"token_secret"`
-	VMID              int    `json:"vmid" yaml:"vmid"`
-	Name              string `json:"name" yaml:"name"`
-	Memory            int    `json:"memory" yaml:"memory"`
-	Cores             int    `json:"cores" yaml:"cores"`
-	DiskSize          string `json:"disk_size" yaml:"disk_size"`
-	RootPassword      string `json:"root_password" yaml:"root_password"`
-	Storage           string `json:"storage" yaml:"storage"`
-	Bridge            string `json:"bridge" yaml:"bridge"`
-	Output            string `json:"output" yaml:"output"`
-	WorkDir           string `json:"work_dir" yaml:"work_dir"`
-	InsecureTLS       bool   `json:"insecure_tls" yaml:"insecure_tls"`
-	SSHUser           string `json:"ssh_user" yaml:"ssh_user"`
-	SSHPrivateKeyPath string `json:"ssh_private_key_path" yaml:"ssh_private_key_path"`
-	StartAfterCreate  *bool  `json:"start_after_create" yaml:"start_after_create"`
-	WaitIP            *bool  `json:"wait_ip" yaml:"wait_ip"`
-	AgentWaitTimeout  string `json:"agent_wait_timeout" yaml:"agent_wait_timeout"`
-	AgentPollInterval string `json:"agent_poll_interval" yaml:"agent_poll_interval"`
+	ProxmoxHost           string `json:"proxmox_host" yaml:"proxmox_host"`
+	ProxmoxPort           int    `json:"proxmox_port" yaml:"proxmox_port"`
+	SSHPort               int    `json:"ssh_port" yaml:"ssh_port"`
+	Node                  string `json:"node" yaml:"node"`
+	User                  string `json:"user" yaml:"user"`
+	Password              string `json:"password" yaml:"password"`
+	TokenID               string `json:"token_id" yaml:"token_id"`
+	TokenSecret           string `json:"token_secret" yaml:"token_secret"`
+	VMID                  int    `json:"vmid" yaml:"vmid"`
+	Name                  string `json:"name" yaml:"name"`
+	Memory                int    `json:"memory" yaml:"memory"`
+	Cores                 int    `json:"cores" yaml:"cores"`
+	DiskSize              string `json:"disk_size" yaml:"disk_size"`
+	RootPassword          string `json:"root_password" yaml:"root_password"`
+	GuestSSHPublicKeyPath string `json:"guest_ssh_public_key_path" yaml:"guest_ssh_public_key_path"`
+	Storage               string `json:"storage" yaml:"storage"`
+	Bridge                string `json:"bridge" yaml:"bridge"`
+	Output                string `json:"output" yaml:"output"`
+	WorkDir               string `json:"work_dir" yaml:"work_dir"`
+	InsecureTLS           bool   `json:"insecure_tls" yaml:"insecure_tls"`
+	SSHUser               string `json:"ssh_user" yaml:"ssh_user"`
+	SSHPrivateKeyPath     string `json:"ssh_private_key_path" yaml:"ssh_private_key_path"`
+	StartAfterCreate      *bool  `json:"start_after_create" yaml:"start_after_create"`
+	WaitIP                *bool  `json:"wait_ip" yaml:"wait_ip"`
+	AgentWaitTimeout      string `json:"agent_wait_timeout" yaml:"agent_wait_timeout"`
+	AgentPollInterval     string `json:"agent_poll_interval" yaml:"agent_poll_interval"`
 }
 
 // Load reads a YAML or JSON config file, applies overrides and defaults.
@@ -113,19 +115,20 @@ func configFromFile(fc fileConfig) Config {
 			TokenID:     fc.TokenID,
 			TokenSecret: fc.TokenSecret,
 		},
-		VMID:              fc.VMID,
-		VMName:            fc.Name,
-		MemoryMiB:         fc.Memory,
-		Cores:             fc.Cores,
-		DiskSize:          fc.DiskSize,
-		RootPassword:      fc.RootPassword,
-		Storage:           fc.Storage,
-		Bridge:            fc.Bridge,
-		OutputQcow2:       fc.Output,
-		WorkDir:           fc.WorkDir,
-		InsecureTLS:       fc.InsecureTLS,
-		SSHUser:           fc.SSHUser,
-		SSHPrivateKeyPath: fc.SSHPrivateKeyPath,
+		VMID:                  fc.VMID,
+		VMName:                fc.Name,
+		MemoryMiB:             fc.Memory,
+		Cores:                 fc.Cores,
+		DiskSize:              fc.DiskSize,
+		RootPassword:          fc.RootPassword,
+		GuestSSHPublicKeyPath: fc.GuestSSHPublicKeyPath,
+		Storage:               fc.Storage,
+		Bridge:                fc.Bridge,
+		OutputQcow2:           fc.Output,
+		WorkDir:               fc.WorkDir,
+		InsecureTLS:           fc.InsecureTLS,
+		SSHUser:               fc.SSHUser,
+		SSHPrivateKeyPath:     fc.SSHPrivateKeyPath,
 	}
 	if fc.StartAfterCreate != nil {
 		c.StartAfterCreate = *fc.StartAfterCreate
@@ -202,6 +205,9 @@ func applyOverride(c *Config, o Override) {
 	}
 	if o.RootPassword != nil {
 		c.RootPassword = *o.RootPassword
+	}
+	if o.GuestSSHPublicKeyPath != nil {
+		c.GuestSSHPublicKeyPath = *o.GuestSSHPublicKeyPath
 	}
 	if o.Storage != nil {
 		c.Storage = *o.Storage

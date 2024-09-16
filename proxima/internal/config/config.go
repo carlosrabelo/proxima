@@ -21,30 +21,31 @@ type Auth struct {
 
 // Config is the resolved configuration after load, merge, and defaults.
 type Config struct {
-	ProxmoxHost         string
-	ProxmoxPort         int
-	SSHPort             int
-	Node                string
-	Auth                Auth
-	VMID                int
-	VMName              string
-	MemoryMiB           int
-	Cores               int
-	DiskSize            string
-	RootPassword        string
-	Storage             string
-	Bridge              string
-	OutputQcow2         string
-	WorkDir             string
-	InsecureTLS         bool
-	SSHUser             string
-	SSHPrivateKeyPath   string
-	StartAfterCreate    bool
-	WaitIP              bool
-	AgentWaitTimeout    time.Duration
-	AgentPollInterval   time.Duration
-	startAfterCreateSet bool
-	waitIPSet           bool
+	ProxmoxHost           string
+	ProxmoxPort           int
+	SSHPort               int
+	Node                  string
+	Auth                  Auth
+	VMID                  int
+	VMName                string
+	MemoryMiB             int
+	Cores                 int
+	DiskSize              string
+	RootPassword          string
+	GuestSSHPublicKeyPath string
+	Storage               string
+	Bridge                string
+	OutputQcow2           string
+	WorkDir               string
+	InsecureTLS           bool
+	SSHUser               string
+	SSHPrivateKeyPath     string
+	StartAfterCreate      bool
+	WaitIP                bool
+	AgentWaitTimeout      time.Duration
+	AgentPollInterval     time.Duration
+	startAfterCreateSet   bool
+	waitIPSet             bool
 }
 
 // ApplyDefaults fills zero-valued optional fields with constitution defaults.

@@ -27,7 +27,7 @@ lint: ## Run go vet
 fmt: ## Format Go sources
 	@go fmt ./...
 
-quality: ## Run fmt-check, vet, test, and build
+quality: ## Run format check, vet, test, and build
 	@./.make/quality.sh
 
 clean: ## Remove bin/proxima; keep bin/.gitkeep

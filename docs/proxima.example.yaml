@@ -19,11 +19,13 @@ memory: 2048
 cores: 2
 disk_size: "8G"
 root_password: "change-me"
+# Optional: bake an OpenSSH public key into the guest image for root login:
+# guest_ssh_public_key_path: "~/.ssh/id_rsa.pub"
 storage: "local-lvm"
 bridge: "vmbr0"
 output: "vms/alpine-ready.qcow2"
 work_dir: ".proxima-work"
 insecure_tls: false
-# Optional SSH overrides (token auth requires ssh_private_key_path):
+# Optional SSH overrides for the Proxmox node (token auth requires ssh_private_key_path):
 # ssh_user: "root"
 # ssh_private_key_path: "~/.ssh/id_ed25519"
