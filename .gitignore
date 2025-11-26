@@ -1,0 +1,78 @@
+# Go binaries and build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go specific files
+go.work
+go.work.sum
+
+# Dependency directories
+vendor/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Log files
+*.log
+logs/
+
+# Environment and configuration files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+config.local.yaml
+config.local.yml
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Coverage and profiling files
+coverage.out
+coverage.html
+*.prof
+*.pprof
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.backup
+
+# Project specific
+.nexor/
+dist/
+build/
+
+# Binários em /bin (exceto .gitkeep)
+/bin/*
+!/bin/.gitkeep
