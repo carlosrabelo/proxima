@@ -1,102 +1,43 @@
-# Proxima Configuration File
-# This file defines Proxmox connection settings and VM configurations
-
 proxmox:
-  host: "192.168.1.100"        # Proxmox server IP/hostname
-  port: 8006                   # Proxmox API port
-  user: "root@pam"             # Proxmox user (format: user@realm)
-  password: "your_password"    # Proxmox password
-  node: "pve"                  # Proxmox node name
-  vm_ip_base: "192.168.1"      # Base IP for VMs (will be combined with VMID+100)
+  host: "192.168.1.100"        # Proxmox server IP
+  port: 8006                   # API port
+  user: "root@pam"             # Username
+  password: "your_password"    # Password
+  node: "pve"                  # Node name
+  vm_ip_base: "192.168.1"      # Base IP for VMs
 
-# Global SSH configuration (used as defaults for VMs)
-ssh:
-  user: "root"                 # Default SSH user
-  password: "ssh_password"     # Default SSH password (fallback)
-  key_path: ""                  # Path to private SSH key (optional - will use default keys if empty)
-  port: 22                     # SSH port
-  copy_local_key: false        # Copy local ~/.ssh/id_rsa.pub to VMs
+defaults:
+  cores: 4
+  memory: 4096
+  disk_size: "32G"
+  network:
+    bridge: "vmbr0"
+    vlan: 100
+    model: "virtio"
 
-# VM Definitions
-# Each VM can override global SSH settings and has its own scripts
+
+templates:
+  ubuntu-base: "9000"
+  debian-base: "debian-cloud-init" # Will be looked up by name
+
 vms:
-  # Example 1: Web Server with automatic SSH key copy
-  - name: "web-server-01"
+  # Example 1: Clone from ID alias
+  - name: "web-server"
     vmid: 100
-    cores: 2
-    memory: 2048
-    disk_size: "20G"
-    network:
-      bridge: "vmbr0"
-      vlan: 100
-      model: "virtio"
-    os_template: "local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst"
-    tags: ["web", "production"]
-    auto_start: true
-    ssh:
-      user: "ubuntu"               # VM-specific SSH user
-      password: "ubuntu_password"   # VM-specific password
-      key_path: ""                  # Use default SSH keys (id_rsa, id_ed25519, etc.)
-      copy_local_key: true          # Copy local ~/.ssh/id_rsa.pub to this VM
-      authorized_keys:              # Additional authorized keys
-        - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC..."
-    scripts:
-      - name: "install-nginx"
-        path: "/scripts/install-nginx.sh"
-        args: []
-        timeout: 300
-      - name: "setup-firewall"
-        path: "/scripts/setup-firewall.sh"
-        args: ["--port=80", "--port=443"]
-        timeout: 120
-
-  # Example 2: Database Server with custom SSH key
-  - name: "database-01"
+    template: "ubuntu-base"
+    
+  # Example 2: Clone from Name alias
+  - name: "db-server"
     vmid: 101
-    cores: 4
-    memory: 4096
-    disk_size: "50G"
-    network:
-      bridge: "vmbr0"
-      vlan: 200
-      model: "virtio"
-    os_template: "local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst"
-    tags: ["database", "production"]
-    auto_start: true
-    ssh:
-      user: "ubuntu"               # VM-specific SSH user
-      password: "db_password"      # VM-specific password
-      key_path: "/path/to/db/key"  # Custom SSH key for this VM
-      copy_local_key: false        # Don't copy local key (using custom key)
-      authorized_keys:              # Pre-authorized keys
-        - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC..."
-    scripts:
-      - name: "install-postgresql"
-        path: "/scripts/install-postgresql.sh"
-        args: ["--version=14"]
-        timeout: 600
+    memory: 8192
+    template: "debian-base"
 
-  # Example 3: Development Environment with default SSH settings
-  - name: "dev-env-01"
+  # Example 3: Direct ID usage (no alias needed if integer, but config adapter checks alias first)
+  # If '9001' is not in templates map, it uses "9001" as string. 
+  # Adapter tries alias lookup. If not found, uses original string.
+  # Proxox adapter tries Atoi. If success -> ID.
+  - name: "cache-server"
     vmid: 102
     cores: 2
-    memory: 4096
-    disk_size: "30G"
-    network:
-      bridge: "vmbr0"
-      vlan: 300
-      model: "virtio"
-    os_template: "local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst"
-    tags: ["development", "testing"]
-    auto_start: false
-    ssh:
-      user: "developer"            # Development user
-      password: ""                  # No password - use SSH keys only
-      key_path: ""                  # Use default SSH keys
-      copy_local_key: true          # Copy developer's local key
-      authorized_keys: []           # No additional keys
-    scripts:
-      - name: "setup-dev-tools"
-        path: "/scripts/setup-dev-tools.sh"
-        args: ["--install-docker", "--setup-nodejs"]
-        timeout: 600
+    memory: 2048
+    template: "9001"

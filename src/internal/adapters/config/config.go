@@ -1,9 +1,11 @@
 package config
 
 type Config struct {
-	Proxmox ProxmoxConfig `yaml:"proxmox"`
-	SSH     SSHConfig     `yaml:"ssh"`
-	VMs     []VMConfig    `yaml:"vms"`
+	Proxmox   ProxmoxConfig     `yaml:"proxmox"`
+	SSH       SSHConfig         `yaml:"ssh"`
+	Defaults  VMConfig          `yaml:"defaults"`
+	Templates map[string]string `yaml:"templates"`
+	VMs       []VMConfig        `yaml:"vms"`
 }
 
 type ProxmoxConfig struct {
@@ -24,17 +26,17 @@ type SSHConfig struct {
 }
 
 type VMConfig struct {
-	Name       string         `yaml:"name"`
-	VMID       int            `yaml:"vmid"`
-	Cores      int            `yaml:"cores"`
-	Memory     int            `yaml:"memory"`
-	DiskSize   string         `yaml:"disk_size"`
-	Network    NetworkConfig  `yaml:"network"`
-	OSTemplate string         `yaml:"os_template"`
-	Tags       []string       `yaml:"tags"`
-	AutoStart  bool           `yaml:"auto_start"`
-	SSH        SSHVMConfig    `yaml:"ssh"`
-	Scripts    []ScriptConfig `yaml:"scripts"`
+	Name      string         `yaml:"name"`
+	VMID      int            `yaml:"vmid"`
+	Cores     int            `yaml:"cores"`
+	Memory    int            `yaml:"memory"`
+	DiskSize  string         `yaml:"disk_size"`
+	Network   NetworkConfig  `yaml:"network"`
+	Template  string         `yaml:"template"`
+	Tags      []string       `yaml:"tags"`
+	AutoStart bool           `yaml:"auto_start"`
+	SSH       SSHVMConfig    `yaml:"ssh"`
+	Scripts   []ScriptConfig `yaml:"scripts"`
 }
 
 type NetworkConfig struct {

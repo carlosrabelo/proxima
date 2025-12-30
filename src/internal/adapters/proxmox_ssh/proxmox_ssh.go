@@ -51,32 +51,44 @@ func (p *ProxmoxSSHAdapter) executeSSHCommand(command string) (string, error) {
 }
 
 func (p *ProxmoxSSHAdapter) Create(vm *domain.VM) error {
-	// Build qm create command
-	cmd := fmt.Sprintf("qm create %d --name %s --cores %d --memory %d --net0 virtio,bridge=%s",
-		vm.ID, vm.Name, vm.Cores, vm.Memory, vm.Network.Bridge)
+	// 1. Resolve Template ID
+	var templateID int
+	if id, err := strconv.Atoi(vm.Template); err == nil {
+		templateID = id
+	} else {
+		// Try to find by name
+		// For SSH, GetByName calls p.List() which calls 'qm list' via SSH. This is fine.
+		templateVM, err := p.GetByName(vm.Template)
+		if err != nil {
+			return fmt.Errorf("failed to resolve template '%s': %w", vm.Template, err)
+		}
+		templateID = templateVM.ID
+	}
+
+	// 2. Clone VM
+	// Command: qm clone <vmid> <newid> -name <name> -full 1
+	cloneCmd := fmt.Sprintf("qm clone %d %d --name %s --full 1", templateID, vm.ID, vm.Name)
+	fmt.Printf("Cloning VM with command: %s\n", cloneCmd)
+	if _, err := p.executeSSHCommand(cloneCmd); err != nil {
+		return fmt.Errorf("failed to clone VM: %w", err)
+	}
+
+	// 3. Update VM Config (Resources)
+	// Command: qm set <vmid> --cores <cores> --memory <memory> --net0 ...
+	updateCmd := fmt.Sprintf("qm set %d --cores %d --memory %d --net0 virtio,bridge=%s",
+		vm.ID, vm.Cores, vm.Memory, vm.Network.Bridge)
 
 	if vm.Network.VLAN > 0 {
-		cmd += fmt.Sprintf(",tag=%d", vm.Network.VLAN)
+		updateCmd += fmt.Sprintf(",tag=%d", vm.Network.VLAN)
 	}
 
-	if vm.DiskSize != "" {
-		// If OSTemplate is provided, we might want to use it as the source for the disk
-		// But for now, let's keep disk creation simple and handle OSTemplate as cdrom
-		cmd += fmt.Sprintf(" --scsi0 %s", vm.DiskSize)
-	}
+	// We omit --scsi0 resizing for now to be consistent with API adapter
 
-	if vm.OSTemplate != "" {
-		cmd += fmt.Sprintf(" --cdrom %s", vm.OSTemplate)
-	}
-
-	// Add basic cloud-init setup if keys are present (requires cloud-init drive, which we assume or create)
-	// For now, we'll just append the command. In a real scenario, we'd need to add a cloud-init drive.
-	// cmd += " --ide2 local-lvm:cloudinit"
-
-	fmt.Printf("Creating VM with command: %s\n", cmd)
-	_, err := p.executeSSHCommand(cmd)
-	if err != nil {
-		return err
+	fmt.Printf("Updating VM config with command: %s\n", updateCmd)
+	if _, err := p.executeSSHCommand(updateCmd); err != nil {
+		// Try to warn but allow continuation or fail?
+		// If resource update fails, the VM is still usable but with template specs.
+		return fmt.Errorf("VM cloned but failed to update resources: %w", err)
 	}
 
 	if len(vm.SSH.AuthorizedKeys) > 0 {

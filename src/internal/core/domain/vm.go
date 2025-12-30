@@ -3,20 +3,20 @@ package domain
 import "time"
 
 type VM struct {
-	ID         int
-	Name       string
-	Status     VMStatus
-	Cores      int
-	Memory     int
-	DiskSize   string
-	Network    Network
-	OSTemplate string
-	Tags       []string
-	AutoStart  bool
-	SSH        SSHConfig
-	Scripts    []Script
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID        int
+	Name      string
+	Status    VMStatus
+	Cores     int
+	Memory    int
+	DiskSize  string
+	Network   Network
+	Template  string
+	Tags      []string
+	AutoStart bool
+	SSH       SSHConfig
+	Scripts   []Script
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type VMStatus string
